@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vectorscope</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root, :root:not([data-theme="light"]) {
+    --bg: #0b100e;
+    --panel: #121815;
+    --panel-2: #161d19;
+    --line: #263029;
+    --line-bright: #384539;
+    --phosphor: #5be08a;
+    --phosphor-dim: #2c6b46;
+    --phosphor-bright: #a8ffc4;
+    --amber: #e3a94a;
+    --text: #d9e4dd;
+    --text-dim: #7d8f85;
+    --text-dimmer: #4d5b54;
+    --danger: #d9714e;
+    --ch-r: #ff6b6b;
+    --ch-g: #63e07a;
+    --ch-b: #6ba8ff;
+    --ch-y: #e9f3ea;
+    --font-ui: 'Space Grotesk', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b100e; --panel: #121815; --panel-2: #161d19; --line: #263029; --line-bright: #384539;
+      --phosphor: #5be08a; --phosphor-dim: #2c6b46; --phosphor-bright: #a8ffc4;
+      --amber: #e3a94a; --text: #d9e4dd; --text-dim: #7d8f85; --text-dimmer: #4d5b54; --danger: #d9714e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b100e; --panel: #121815; --panel-2: #161d19; --line: #263029; --line-bright: #384539;
+    --phosphor: #5be08a; --phosphor-dim: #2c6b46; --phosphor-bright: #a8ffc4;
+    --amber: #e3a94a; --text: #d9e4dd; --text-dim: #7d8f85; --text-dimmer: #4d5b54; --danger: #d9714e;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); }
+  body { margin: 0; font-family: var(--font-ui); color: var(--text); padding: 18px; min-height: 100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; }
+  @media (min-width: 1600px) { .wrap { max-width: 1600px; } }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;
+    border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 16px;
+  }
+  header h1 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: 0.01em; }
+  header h1 span { color: var(--phosphor); }
+  header p { margin: 4px 0 0; color: var(--text-dim); font-size: 13px; max-width: 46ch; }
+  .status { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dimmer); }
+  .dot.live { background: var(--phosphor); box-shadow: 0 0 6px var(--phosphor); }
+  .dot.err { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+
+  .gridrow { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+  .gridrow + .gridrow { border-top: none; }
+  .gridrow.row1 { grid-template-columns: 1.4fr 1fr; }
+  .gridrow.row2 { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 980px) {
+    .gridrow, .gridrow.row1, .gridrow.row2 { grid-template-columns: 1fr; }
+  }
+  .row2-panel { max-height: 280px; overflow-y: auto; }
+
+  .panel { background: var(--panel); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .panel h2 {
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim);
+    margin: 0; font-weight: 500; display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  .legend { display: flex; gap: 10px; font-family: var(--font-mono); font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  select, button {
+    font-family: var(--font-ui); background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line-bright); padding: 7px 10px; font-size: 13px; cursor: pointer;
+  }
+  select:focus, button:focus, input:focus, canvas:focus { outline: 2px solid var(--phosphor); outline-offset: 1px; }
+  button:hover { border-color: var(--phosphor-dim); }
+  button.active { border-color: var(--phosphor); color: var(--phosphor-bright); }
+  button:disabled { opacity: 0.4; cursor: default; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  #videoWrap { position: relative; background: #000; border: 1px solid var(--line-bright); }
+  #videoCanvas { width: 100%; aspect-ratio: 16/9; display: block; cursor: crosshair; touch-action: none; }
+  .hint-below { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); text-align: center; padding: 6px 4px; }
+  #crosshair {
+    position: absolute; width: 16px; height: 16px; pointer-events: none;
+    border: 1px solid var(--amber); border-radius: 50%; transform: translate(-50%, -50%); display: none;
+  }
+  .masktag { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+  .masktag b { color: var(--amber); font-weight: 500; }
+
+  .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-dim); }
+  .field .valline { display: flex; justify-content: space-between; font-family: var(--font-mono); }
+  input[type="range"] { -webkit-appearance: none; appearance: none; height: 3px; background: var(--line-bright); width: 100%; }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--phosphor); cursor: pointer; margin-top: -4.5px;
+  }
+  input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--phosphor); border: none; cursor: pointer; }
+
+  /* ---- Tabs (scope / waveform / chromaticity) ---- */
+  .tabs { display: flex; gap: 1px; background: var(--line); border: 1px solid var(--line-bright); }
+  .tabBtn {
+    flex: 1; border: none; border-radius: 0; background: var(--panel-2); color: var(--text-dim);
+    font-size: 11px; letter-spacing: 0.03em; padding: 8px 4px;
+  }
+  .tabBtn.active { background: var(--panel); color: var(--phosphor-bright); box-shadow: inset 0 -2px 0 var(--phosphor); }
+  .tabpanel { display: flex; flex-direction: column; gap: 10px; }
+  .tabpanel[hidden] { display: none; }
+
+  #scopeCanvas, #wfYCanvas, #chromaCanvas { width: 100%; background: #060907; border: 1px solid var(--line-bright); display: block; }
+  #scopeCanvas { aspect-ratio: 1/1; }
+  #chromaCanvas { aspect-ratio: 6/7; }
+  #wfYCanvas { aspect-ratio: 4/3; }
+
+  /* ---- White balance bar ---- */
+  .wbtitle { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); font-weight: 500; }
+  .wbrow { display: flex; align-items: center; gap: 8px; }
+  .wbbar-outer { position: relative; flex: 1; }
+  .wbbar { height: 16px; border: 1px solid var(--line-bright); }
+  .wbbar-temp { background: linear-gradient(to right, #ffcf9e, #f4f1ea 50%, #b9d4ff); }
+  .wbbar-tint { background: linear-gradient(to right, #9be6a8, #f0f2ee 50%, #f2a8e0); }
+  .wbmarker {
+    position: absolute; top: -8px; width: 0; height: 0; pointer-events: none;
+    border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 8px solid var(--amber);
+    transform: translateX(-50%); transition: left 0.12s linear; display: none;
+  }
+  .wbval { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; min-width: 88px; text-align: right; }
+  .wbval b { color: var(--phosphor-bright); font-weight: 500; }
+
+  .swatchbig { width: 100%; height: 56px; border: 1px solid var(--line-bright); background: #333; }
+  .valgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-family: var(--font-mono); font-size: 13px; }
+  .valgrid div.label { color: var(--text-dim); font-size: 11px; }
+
+  .matchbox { display: flex; gap: 10px; align-items: center; border: 1px solid var(--line-bright); padding: 10px; background: var(--panel-2); }
+  .matchbox .sw { width: 36px; height: 36px; flex: none; border: 1px solid var(--line-bright); }
+  .matchbox .info { font-family: var(--font-mono); font-size: 12px; }
+  .matchbox .info .name { font-family: var(--font-ui); font-size: 13px; color: var(--text); font-weight: 500; }
+  .de-good { color: var(--phosphor-bright); }
+  .de-ok { color: var(--amber); }
+  .de-bad { color: var(--danger); }
+
+  .patches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 4px; }
+  .patch { aspect-ratio: 2/1; border: 1px solid var(--line-bright); position: relative; cursor: pointer; }
+  .patch.nearest { border: 2px solid var(--amber); box-shadow: 0 0 0 1px var(--amber); }
+  .patch .num { position: absolute; top: 2px; left: 3px; font-family: var(--font-mono); font-size: 9px; color: rgba(255,255,255,0.55); mix-blend-mode: difference; }
+
+  .barchart { display: flex; gap: 10px; height: 175px; padding: 6px 4px 0; }
+  .bargroup { display: flex; gap: 6px; flex: 1; height: 100%; border-right: 1px solid var(--line); padding-right: 10px; }
+  .bargroup:last-child { border-right: none; padding-right: 0; }
+  .bar-col { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; }
+  .bar-track { flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+  .bar { width: 62%; min-height: 2px; transition: height 0.1s linear; }
+  .bar.now { border-radius: 2px 2px 0 0; }
+  .bar.ideal { background: transparent; border: 1.5px solid; border-bottom: none; border-radius: 2px 2px 0 0; box-sizing: border-box; }
+  .barlabel { margin-top: 6px; font-family: var(--font-mono); font-size: 9px; color: var(--text-dim); text-align: center; line-height: 1.3; }
+  .barlabel b { display: block; color: var(--text); font-weight: 500; font-size: 11px; }
+
+  footer { margin-top: 16px; font-size: 11px; color: var(--text-dimmer); font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>VECTOR<span>SCOPE</span></h1>
+    </div>
+    <div class="row" style="gap:16px; align-items:center;">
+      <div class="row" style="gap:4px;" title="Quelle bleibt physisch sRGB – nur die Y′UV-Umrechnung wechselt.">
+        <span style="font-size:11px; color:var(--text-dim);">Profil:</span>
+        <button class="profileBtn" data-profile="601">601</button>
+        <button class="profileBtn active" data-profile="709">709</button>
+        <button class="profileBtn" data-profile="2020">2020</button>
+        <button class="profileBtn" data-profile="classic">Klassisch</button>
+      </div>
+      <div class="field" style="min-width:170px;">
+        <div class="valline"><span>Nachleuchten</span><span id="decayVal">mittel</span></div>
+        <input type="range" id="decaySlider" min="1" max="9" step="1" value="4">
+      </div>
+      <button id="clearTraceBtn">Spuren löschen</button>
+    </div>
+    <div class="status">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Kamera wird angefragt …</span>
+    </div>
+  </header>
+
+  <!-- ROW 1: camera + white-balance bar (left, bigger) / tabbed scope-waveform-chroma (right) -->
+  <div class="gridrow row1">
+    <div class="panel">
+      <h2>Kamera</h2>
+      <div id="videoWrap">
+        <canvas id="videoCanvas" width="960" height="540" tabindex="0"></canvas>
+        <div id="crosshair"></div>
+      </div>
+      <div class="hint-below">Klick = Pixel aufnehmen · Ziehen = Maske</div>
+      <div class="row">
+        <select id="camSelect" style="flex:1; min-width:120px;"></select>
+      </div>
+      <div id="camSettingsSection" style="border-top:1px solid var(--line); padding-top:10px; margin-top:2px; display:flex; flex-direction:column; gap:10px;">
+        <div class="wbtitle">Kameraeinstellungen</div>
+        <div id="camSettingsBody" style="display:flex; flex-direction:column; gap:10px;"></div>
+      </div>
+      <div class="row">
+        <button id="freezeBtn">Standbild</button>
+        <button id="mirrorBtn" class="active">Spiegeln</button>
+        <button id="blurBtn">Weichzeichnen</button>
+        <button id="zoomBtn">Zoom ×2</button>
+      </div>
+      <div class="row">
+        <button id="maskResetBtn" disabled>Maske zurücksetzen</button>
+        <span class="masktag" id="maskTag">Maske: <b>aus</b></span>
+      </div>
+      <div class="wbsection" style="border-top:1px solid var(--line); padding-top:10px; margin-top:2px; display:flex; flex-direction:column; gap:6px;">
+        <div class="wbtitle">Weißabgleich (relativ zu D65)</div>
+        <div class="wbrow">
+          <div class="wbbar-outer">
+            <div class="wbbar wbbar-temp"></div>
+            <div class="wbmarker" id="wbMarkerTemp"></div>
+          </div>
+          <span class="wbval" id="wbValTemp">— K</span>
+        </div>
+        <div class="wbrow">
+          <div class="wbbar-outer">
+            <div class="wbbar wbbar-tint"></div>
+            <div class="wbmarker" id="wbMarkerTint"></div>
+          </div>
+          <span class="wbval" id="wbValTint">Tint —</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="tabs">
+        <button class="tabBtn active" data-tab="scope">Vectorscope</button>
+        <button class="tabBtn" data-tab="wave">Y-Waveform</button>
+        <button class="tabBtn" data-tab="chroma">CIE Farbraum</button>
+      </div>
+
+      <div class="tabpanel" data-tabpanel="scope">
+        <canvas id="scopeCanvas" width="440" height="440"></canvas>
+        <div class="field">
+          <div class="valline"><span>Gain</span><span id="gainVal">1.0×</span></div>
+          <input type="range" id="gainSlider" min="0.5" max="3" step="0.1" value="1">
+        </div>
+        <div class="row">
+          <button id="pickerMarkerBtn">Picker-Position anzeigen</button>
+        </div>
+      </div>
+
+      <div class="tabpanel" data-tabpanel="wave" hidden>
+        <canvas id="wfYCanvas" width="440" height="330"></canvas>
+      </div>
+
+      <div class="tabpanel" data-tabpanel="chroma" hidden>
+        <canvas id="chromaCanvas" width="420" height="490"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 2: chart / colorpicker / RGB+Luma jetzt-vs-ideal bars -->
+  <div class="gridrow row2">
+    <div class="panel row2-panel">
+      <h2>24-Felder Color Checker
+        <span class="legend" style="gap:8px;">
+          <span style="font-family:var(--font-mono);">sRGB · D65</span>
+          <button id="chartMarkersBtn" style="font-size:10px; padding:4px 8px;">In Scope/CIE anzeigen</button>
+        </span>
+      </h2>
+      <div class="patches" id="patches"></div>
+    </div>
+
+    <div class="panel row2-panel">
+      <h2>Colorpicker</h2>
+      <div class="swatchbig" id="pickedSwatch"></div>
+      <div class="valgrid">
+        <div><div class="label">HEX</div><div id="valHex">—</div></div>
+        <div><div class="label">RGB</div><div id="valRgb">—</div></div>
+        <div><div class="label">Lab</div><div id="valLab">—</div></div>
+        <div><div class="label">U / V</div><div id="valUv">—</div></div>
+      </div>
+      <div class="matchbox" id="matchBox">
+        <div class="sw" id="matchSwatch"></div>
+        <div class="info">
+          <div class="name" id="matchName">— Pixel anklicken —</div>
+          <div id="matchRgb">RGB —</div>
+          <div id="matchDe">Y′UV-Δ —</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel row2-panel">
+      <h2>RGB + Luma: Jetzt / Ideal
+        <span class="legend"><span><i style="background:var(--text-dim); border-radius:2px;"></i>Jetzt</span><span><i style="background:transparent; border:1.5px solid var(--text-dim); border-radius:2px;"></i>Ideal</span></span>
+      </h2>
+      <div class="barchart" id="rgbBars">
+        <div class="bargroup">
+          <div class="bar-col">
+            <div class="bar-track"><div class="bar now" id="barRNow" style="background:var(--ch-r);"></div></div>
+            <div class="barlabel">R jetzt<b id="valBarRNow">—</b></div>
+          </div>
+          <div class="bar-col">
+            <div class="bar-track"><div class="bar ideal" id="barRIdeal" style="border-color:var(--ch-r);"></div></div>
+            <div class="barlabel">R ideal<b id="valBarRIdeal">—</b></div>
+          </div>
+        </div>
+        <div class="bargroup">
+          <div class="bar-col">
+            <div class="bar-track"><div class="bar now" id="barGNow" style="background:var(--ch-g);"></div></div>
+            <div class="barlabel">G jetzt<b id="valBarGNow">—</b></div>
+          </div>
+          <div class="bar-col">
+            <div class="bar-track"><div class="bar ideal" id="barGIdeal" style="border-color:var(--ch-g);"></div></div>
+            <div class="barlabel">G ideal<b id="valBarGIdeal">—</b></div>
+          </div>
+        </div>
+        <div class="bargroup">
+          <div class="bar-col">
+            <div class="bar-track"><div class="bar now" id="barBNow" style="background:var(--ch-b);"></div></div>
+            <div class="barlabel">B jetzt<b id="valBarBNow">—</b></div>
+          </div>
+          <div class="bar-col">
+            <div class="bar-track"><div class="bar ideal" id="barBIdeal" style="border-color:var(--ch-b);"></div></div>
+            <div class="barlabel">B ideal<b id="valBarBIdeal">—</b></div>
+          </div>
+        </div>
+        <div class="bargroup">
+          <div class="bar-col">
+            <div class="bar-track"><div class="bar now" id="barYNow" style="background:var(--ch-y);"></div></div>
+            <div class="barlabel">Y jetzt<b id="valBarYNow">—</b></div>
+          </div>
+          <div class="bar-col">
+            <div class="bar-track"><div class="bar ideal" id="barYIdeal" style="border-color:var(--ch-y);"></div></div>
+            <div class="barlabel">Y ideal<b id="valBarYIdeal">—</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Webcam-Signal live als Vektor-, Waveform- und Chromatizitäts-Monitor, plus Pixel-Colorpicker gegen eine 24-Felder-Farbtafel. 
+  Farbfeld-Match = kleinster euklidischer Abstand im Y′UV-Raum (Luma + Vektorskop-Ebene) zum aktuellen Farbprofil, nicht per RGB · 
+  Farbtemperatur = McCamy-Näherung aus der CIE-xy-Chromatizität, G/M-Wert = Duv (Abstand von der Planckschen Kurve in CIE-1960-uv, ×1000), beides nur bei annähernd achromatischen (grauen/weißen) Farben sinnvoll · 
+  Referenzwerte sind gängige sRGB-Näherungen einer 24-Felder-Farbtafel, keine Herstellermessung. Maske: rechteckiger Bereich bleibt sichtbar und fließt in Analyse ein, Rest wird schwarz maskiert.
+  Farbtiefe pro Kanal ist über Web-Kamera-APIs nicht abfragbar/einstellbar – 
+  Browser liefern grundsätzlich 8-Bit pro Kanal. Nur was der Browser/die Kamera tatsächlich meldet, erscheint hier. 
+  Vereinfachtes CIE-xy-Diagramm: sRGB-Dreieck, Planckscher Kurvenzug (Schwarzkörper) und die Position der aktuell gepickten Farbe. 
+  chmee v14.1 sep-2026
+</footer>
+</div>
+
+<video id="video" autoplay playsinline muted style="display:none;"></video>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Reference 24-patch color chart (approx sRGB, D65) ----------
+  const CHART = [
+    ["Dunkle Haut",[115,82,68]], ["Helle Haut",[194,150,130]], ["Himmelblau",[98,122,157]],
+    ["Laub",[87,108,67]], ["Blaue Blüte",[133,128,177]], ["Blaugrün",[103,189,170]],
+    ["Orange",[214,126,44]], ["Violettblau",[80,91,166]], ["Mäßiges Rot",[193,90,99]],
+    ["Violett",[94,60,108]], ["Gelbgrün",[157,188,64]], ["Orangegelb",[224,163,46]],
+    ["Blau",[56,61,150]], ["Grün",[70,148,73]], ["Rot",[175,54,60]],
+    ["Gelb",[231,199,31]], ["Magenta",[187,86,149]], ["Cyan",[8,133,161]],
+    ["Weiß 9.5",[243,243,242]], ["Neutral 8",[200,200,200]], ["Neutral 6.5",[160,160,160]],
+    ["Neutral 5",[122,122,121]], ["Neutral 3.5",[85,85,85]], ["Schwarz 2",[52,52,52]]
+  ];
+
+  // ---------- Color math ----------
+  function srgbToLinear(c){ c/=255; return c<=0.04045 ? c/12.92 : Math.pow((c+0.055)/1.055,2.4); }
+  function rgbToXyz(r,g,b){
+    r=srgbToLinear(r); g=srgbToLinear(g); b=srgbToLinear(b);
+    return [
+      r*0.4124564+g*0.3575761+b*0.1804375,
+      r*0.2126729+g*0.7151522+b*0.0721750,
+      r*0.0193339+g*0.1191920+b*0.9503041
+    ];
+  }
+  function xyzToLab(X,Y,Z){
+    const Xn=0.95047, Yn=1.0, Zn=1.08883;
+    const f = t => t>0.008856 ? Math.cbrt(t) : (7.787*t+16/116);
+    const fx=f(X/Xn), fy=f(Y/Yn), fz=f(Z/Zn);
+    return [116*fy-16, 500*(fx-fy), 200*(fy-fz)];
+  }
+  function rgbToLab(r,g,b){ const [X,Y,Z]=rgbToXyz(r,g,b); return xyzToLab(X,Y,Z); }
+  function rgbToXy(r,g,b){
+    const [X,Y,Z] = rgbToXyz(r,g,b);
+    const s = X+Y+Z;
+    if(s <= 0) return [0.3127, 0.3290]; // fall back to D65 for pure black
+    return [X/s, Y/s];
+  }
+  // CIE 1960 UCS (u,v) - Duv (the standard measure for distance from the
+  // Planckian locus, ANSI C78.377) is only well-defined in this uniform space.
+  function xyToUV(x,y){ const d = -2*x+12*y+3; return [4*x/d, 6*y/d]; }
+  function toHex(r,g,b){ return "#"+[r,g,b].map(v=>v.toString(16).padStart(2,"0")).join(""); }
+
+  // ---------- Inverse direction: xyY -> displayable sRGB, for coloring the ----------
+  // ---------- chromaticity diagram itself with the actual perceived hue ----------
+  function linearToSrgb(c){
+    c = Math.max(0, Math.min(1, c));
+    return c<=0.0031308 ? c*12.92 : 1.055*Math.pow(c,1/2.4)-0.055;
+  }
+  function xyYToSrgb(x, y, Y){
+    if(y <= 0.0001) return [0,0,0];
+    const X = (x/y)*Y, Z = ((1-x-y)/y)*Y;
+    // inverse of the sRGB/D65 matrix used in rgbToXyz()
+    let r =  3.2404542*X -1.5371385*Y -0.4985314*Z;
+    let g = -0.9692660*X +1.8760108*Y +0.0415560*Z;
+    let b =  0.0556434*X -0.2040259*Y +1.0572252*Z;
+    // points outside the sRGB gamut get one or more negative/>1 components;
+    // rescale (preserving hue) rather than hard-clip, so the diagram fades
+    // gracefully at the gamut edge instead of banding to flat colors
+    const peak = Math.max(r, g, b, 1e-6);
+    if(peak > 1){ r/=peak; g/=peak; b/=peak; }
+    r = Math.max(0,r); g = Math.max(0,g); b = Math.max(0,b);
+    return [Math.round(linearToSrgb(r)*255), Math.round(linearToSrgb(g)*255), Math.round(linearToSrgb(b)*255)];
+  }
+
+  // ---------- Y'UV color profile (Rec.601 / 709 / 2020 luma coefficients) ----------
+  // The camera itself always delivers sRGB (~Rec.709 primaries) - switching this
+  // only changes which broadcast convention is used to compute Y'/U'/V' from it.
+  const PROFILES = {
+    "601":     { kr: 0.299,  kb: 0.114,  label: "Rec.601"  },
+    "709":     { kr: 0.2126, kb: 0.0722, label: "Rec.709"  },
+    "2020":    { kr: 0.2627, kb: 0.0593, label: "Rec.2020" },
+    "classic": { kr: 0.299,  kb: 0.114,  label: "Klassisch (analog PAL/NTSC)", classicUV: true }
+  };
+  let currentProfile = "709";
+  function computeY(r,g,b){
+    const p = PROFILES[currentProfile];
+    return p.kr*r + (1-p.kr-p.kb)*g + p.kb*b;
+  }
+  function computeUV(r,g,b){
+    const p = PROFILES[currentProfile];
+    const y = computeY(r,g,b);
+    if(p.classicUV){
+      return [0.492*(b-y), 0.877*(r-y)];
+    }
+    return [0.5*(b-y)/(1-p.kb), 0.5*(r-y)/(1-p.kr)];
+  }
+
+  // ---------- CCT estimation ----------
+  // McCamy (1992) CCT approximation from CIE xy - only meaningful near the
+  // Planckian locus, i.e. for roughly achromatic (gray/white) input colors.
+  function estimateCCT(r,g,b){
+    const [x,y] = rgbToXy(r,g,b);
+    const n = (x-0.3320)/(0.1858-y);
+    if(!isFinite(n)) return null;
+    const cct = 449*n*n*n + 3525*n*n + 6823.3*n + 5520.33;
+    return isFinite(cct) && cct > 0 ? cct : null;
+  }
+  // Kim et al. (2002) Planckian locus approximation in CIE xy, for drawing
+  // the blackbody curve on the chromaticity diagram.
+  function planckianXY(T){
+    const T2=T*T, T3=T2*T;
+    let x;
+    if(T>=1667 && T<=4000) x = -0.2661239e9/T3 - 0.2343589e6/T2 + 0.8776956e3/T + 0.179910;
+    else x = -3.0258469e9/T3 + 2.1070379e6/T2 + 0.2226347e3/T + 0.240390;
+    const x2=x*x, x3=x2*x;
+    let y;
+    if(T>=1667 && T<=2222) y = -1.1063814*x3 -1.34811020*x2 +2.18555832*x -0.20219683;
+    else if(T>2222 && T<=4000) y = -0.9549476*x3 -1.37418593*x2 +2.09137015*x -0.16748867;
+    else y = 3.0817580*x3 -5.87338670*x2 +3.75112997*x -0.37001483;
+    return [x,y];
+  }
+  function planckianUV(T){ const [x,y] = planckianXY(T); return xyToUV(x,y); }
+  // Duv: signed perpendicular distance from the Planckian locus in CIE 1960 uv
+  // space (ANSI C78.377). This is the standard "distance from blackbody" unit -
+  // positive = toward green, negative = toward magenta/pink (the "tint" axis
+  // shown on light meters, sometimes as a scaled "+3G"/"-2M" index).
+  function computeDuv(r,g,b,cct){
+    const [x,y] = rgbToXy(r,g,b);
+    const [u,v] = xyToUV(x,y);
+    const [u0,v0] = planckianUV(cct);
+    const dT = Math.max(1, cct*0.002);
+    const [u1,v1] = planckianUV(cct+dT);
+    let tx = u1-u0, ty = v1-v0;
+    const tl = Math.hypot(tx,ty) || 1; tx/=tl; ty/=tl;
+    const nx = ty, ny = -tx; // perpendicular, oriented so + = green, - = magenta
+    return (u-u0)*nx + (v-v0)*ny;
+  }
+
+  const CHART_LAB = CHART.map(([name,rgb]) => ({name, rgb, lab: rgbToLab(...rgb)}));
+
+  // ---------- Build patch grid ----------
+  const patchesEl = document.getElementById("patches");
+  CHART_LAB.forEach((p, i) => {
+    const d = document.createElement("div");
+    d.className = "patch";
+    d.style.background = toHex(...p.rgb);
+    d.innerHTML = `<span class="num">${i+1}</span>`;
+    d.title = p.name;
+    d.addEventListener("click", () => { livePickPos = null; showPicked(p.rgb, i); });
+    patchesEl.appendChild(d);
+  });
+
+  // ---------- Camera setup ----------
+  const video = document.getElementById("video");
+  const videoCanvas = document.getElementById("videoCanvas");
+  const vCtx = videoCanvas.getContext("2d", { willReadFrequently: true });
+  const camSelect = document.getElementById("camSelect");
+  const statusDot = document.getElementById("statusDot");
+  const statusText = document.getElementById("statusText");
+  const crosshair = document.getElementById("crosshair");
+  const VW = videoCanvas.width, VH = videoCanvas.height;
+
+  let mirrored = true;
+  let frozen = false;
+  let blurEnabled = false;
+  let zoomEnabled = false;
+  const BLUR_PX = 3;
+  const ZOOM_FACTOR = 2;
+  let currentStream = null;
+  let livePickPos = null; // {x,y} in videoCanvas pixel space – continuously re-sampled each frame
+  let pickedRgb = null;   // last picked/tracked RGB, used by markers + profile switches
+
+  async function listCams(){
+    try{
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cams = devices.filter(d => d.kind === "videoinput");
+      camSelect.innerHTML = "";
+      cams.forEach((c,i) => {
+        const opt = document.createElement("option");
+        opt.value = c.deviceId;
+        opt.textContent = c.label || ("Kamera " + (i+1));
+        camSelect.appendChild(opt);
+      });
+    }catch(e){ /* ignore */ }
+  }
+
+  async function startCam(deviceId){
+    if(currentStream){ currentStream.getTracks().forEach(t=>t.stop()); }
+    try{
+      const constraints = { video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: "user" }, audio: false };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      currentStream = stream;
+      video.srcObject = stream;
+      await video.play();
+      statusDot.className = "dot live";
+      statusText.textContent = "Live";
+      await listCams();
+      buildCameraSettingsUI();
+    }catch(e){
+      statusDot.className = "dot err";
+      statusText.textContent = "Kein Kamerazugriff (" + e.name + ")";
+    }
+  }
+
+  // ---------- Camera hardware settings (resolution, frame rate, and whatever ----------
+  // ---------- else the browser/camera actually exposes via MediaTrackCapabilities) ----------
+  function makeSelectRow(label, options, current, onChange){
+    const wrap = document.createElement("div");
+    wrap.className = "row"; wrap.style.justifyContent = "space-between"; wrap.style.alignItems = "center";
+    const lab = document.createElement("span"); lab.style.fontSize = "12px"; lab.style.color = "var(--text-dim)"; lab.textContent = label;
+    const sel = document.createElement("select"); sel.style.flex = "1"; sel.style.marginLeft = "10px";
+    options.forEach(opt => {
+      const o = document.createElement("option");
+      o.value = opt.value; o.textContent = opt.text;
+      if(String(opt.value) === String(current)) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener("change", () => onChange(sel.value));
+    wrap.appendChild(lab); wrap.appendChild(sel);
+    return wrap;
+  }
+  function makeRangeRow(label, min, max, step, current, onChange, unit){
+    const wrap = document.createElement("div"); wrap.className = "field";
+    const top = document.createElement("div"); top.className = "valline";
+    const labSpan = document.createElement("span"); labSpan.textContent = label;
+    const valSpan = document.createElement("span"); valSpan.textContent = (current!==undefined && current!==null ? Math.round(current*100)/100 : min) + (unit||"");
+    top.appendChild(labSpan); top.appendChild(valSpan);
+    const input = document.createElement("input");
+    input.type = "range"; input.min = min; input.max = max; input.step = step || 1;
+    input.value = (current!==undefined && current!==null) ? current : min;
+    input.addEventListener("input", () => { valSpan.textContent = input.value + (unit||""); });
+    input.addEventListener("change", () => onChange(parseFloat(input.value)));
+    wrap.appendChild(top); wrap.appendChild(input);
+    return wrap;
+  }
+  function makeToggleRow(label, current, onChange){
+    const btn = document.createElement("button");
+    btn.textContent = label;
+    btn.style.alignSelf = "flex-start";
+    if(current) btn.classList.add("active");
+    btn.addEventListener("click", () => {
+      const next = !btn.classList.contains("active");
+      btn.classList.toggle("active", next);
+      onChange(next);
+    });
+    return btn;
+  }
+  async function applyTrackConstraint(obj){
+    const track = currentStream && currentStream.getVideoTracks()[0];
+    if(!track) return;
+    try{ await track.applyConstraints(obj); }
+    catch(e){
+      try{ await track.applyConstraints({advanced:[obj]}); }
+      catch(e2){ console.warn("Kamera-Constraint abgelehnt:", obj, e2); }
+    }
+    buildCameraSettingsUI();
+  }
+  function buildCameraSettingsUI(){
+    const body = document.getElementById("camSettingsBody");
+    if(!body) return;
+    body.innerHTML = "";
+    const track = currentStream && currentStream.getVideoTracks()[0];
+    if(!track){ body.innerHTML = '<span class="masktag">Keine aktive Kamera.</span>'; return; }
+    if(!track.getCapabilities){
+      body.innerHTML = '<span class="masktag">Dieser Browser unterstützt keine Abfrage der Kamera-Fähigkeiten (MediaTrackCapabilities).</span>';
+      return;
+    }
+    let caps = {}, settings = {};
+    try{ caps = track.getCapabilities() || {}; }catch(e){}
+    try{ settings = track.getSettings ? (track.getSettings()||{}) : {}; }catch(e){}
+
+    if(caps.width && caps.height){
+      const presets = [[640,360],[960,540],[1280,720],[1920,1080],[2560,1440],[3840,2160]]
+        .filter(([w,h]) => w<=(caps.width.max||w) && h<=(caps.height.max||h));
+      const options = presets.map(([w,h]) => ({value:`${w}x${h}`, text:`${w}×${h}`}));
+      const currentRes = `${settings.width||""}x${settings.height||""}`;
+      if(settings.width && !options.some(o=>o.value===currentRes)){
+        options.push({value:currentRes, text:`${settings.width}×${settings.height} (aktuell)`});
+      }
+      body.appendChild(makeSelectRow("Auflösung", options, currentRes, (val) => {
+        const [w,h] = val.split("x").map(Number);
+        applyTrackConstraint({width:{ideal:w}, height:{ideal:h}});
+      }));
+    } else if(settings.width){
+      const info = document.createElement("span"); info.className = "masktag";
+      info.textContent = `Auflösung (nicht änderbar): ${settings.width}×${settings.height}`;
+      body.appendChild(info);
+    }
+
+    if(caps.frameRate){
+      const min = Math.max(1, Math.floor(caps.frameRate.min||1)), max = Math.ceil(caps.frameRate.max||30);
+      body.appendChild(makeRangeRow("Bildrate", min, max, 1, Math.round(settings.frameRate||max), (v)=>applyTrackConstraint({frameRate:{ideal:v}}), " fps"));
+    }
+    if(caps.whiteBalanceMode && caps.whiteBalanceMode.length>1){
+      body.appendChild(makeSelectRow("Weißabgleich (Kamera)", caps.whiteBalanceMode.map(m=>({value:m,text:m})), settings.whiteBalanceMode, (v)=>applyTrackConstraint({whiteBalanceMode:v})));
+    }
+    if(caps.colorTemperature){
+      body.appendChild(makeRangeRow("Farbtemperatur (Kamera-WB)", caps.colorTemperature.min, caps.colorTemperature.max, caps.colorTemperature.step||50, settings.colorTemperature, (v)=>applyTrackConstraint({colorTemperature:v}), " K"));
+    }
+    if(caps.exposureMode && caps.exposureMode.length>1){
+      body.appendChild(makeSelectRow("Belichtungsmodus", caps.exposureMode.map(m=>({value:m,text:m})), settings.exposureMode, (v)=>applyTrackConstraint({exposureMode:v})));
+    }
+    if(caps.exposureCompensation){
+      body.appendChild(makeRangeRow("Belichtungskorrektur", caps.exposureCompensation.min, caps.exposureCompensation.max, caps.exposureCompensation.step||0.1, settings.exposureCompensation, (v)=>applyTrackConstraint({exposureCompensation:v})));
+    }
+    if(caps.exposureTime){
+      body.appendChild(makeRangeRow("Belichtungszeit", caps.exposureTime.min, caps.exposureTime.max, caps.exposureTime.step||1, settings.exposureTime, (v)=>applyTrackConstraint({exposureTime:v})));
+    }
+    if(caps.iso){
+      body.appendChild(makeRangeRow("ISO", caps.iso.min, caps.iso.max, caps.iso.step||1, settings.iso, (v)=>applyTrackConstraint({iso:v})));
+    }
+    if(caps.focusMode && caps.focusMode.length>1){
+      body.appendChild(makeSelectRow("Fokusmodus", caps.focusMode.map(m=>({value:m,text:m})), settings.focusMode, (v)=>applyTrackConstraint({focusMode:v})));
+    }
+    if(caps.focusDistance){
+      body.appendChild(makeRangeRow("Fokusdistanz", caps.focusDistance.min, caps.focusDistance.max, caps.focusDistance.step||0.1, settings.focusDistance, (v)=>applyTrackConstraint({focusDistance:v})));
+    }
+    if(caps.zoom){
+      body.appendChild(makeRangeRow("Hardware-Zoom", caps.zoom.min, caps.zoom.max, caps.zoom.step||0.1, settings.zoom, (v)=>applyTrackConstraint({zoom:v}), "×"));
+    }
+    [["brightness","Helligkeit"],["contrast","Kontrast"],["saturation","Sättigung"],["sharpness","Schärfe"],["pan","Pan"],["tilt","Tilt"]].forEach(([key,label]) => {
+      if(caps[key]){
+        body.appendChild(makeRangeRow(label, caps[key].min, caps[key].max, caps[key].step||1, settings[key], (v)=>applyTrackConstraint({[key]:v})));
+      }
+    });
+    if(caps.torch){
+      body.appendChild(makeToggleRow("Blitzlicht (Torch)", settings.torch, (v)=>applyTrackConstraint({torch:v})));
+    }
+
+    if(body.children.length===0){
+      body.innerHTML = '<span class="masktag">Dieser Browser/diese Kamera meldet außer der Standardauflösung keine weiteren einstellbaren Fähigkeiten.</span>';
+    }
+  }
+
+  camSelect.addEventListener("change", () => startCam(camSelect.value));
+  document.getElementById("mirrorBtn").addEventListener("click", (e) => {
+    mirrored = !mirrored;
+    e.target.classList.toggle("active", mirrored);
+  });
+  document.getElementById("freezeBtn").addEventListener("click", (e) => {
+    frozen = !frozen;
+    e.target.classList.toggle("active", frozen);
+    e.target.textContent = frozen ? "Fortsetzen" : "Standbild";
+  });
+  document.getElementById("blurBtn").addEventListener("click", (e) => {
+    blurEnabled = !blurEnabled;
+    e.target.classList.toggle("active", blurEnabled);
+  });
+  document.getElementById("zoomBtn").addEventListener("click", (e) => {
+    zoomEnabled = !zoomEnabled;
+    e.target.classList.toggle("active", zoomEnabled);
+  });
+
+  startCam(null);
+
+  // ---------- Tabs ----------
+  document.querySelectorAll(".tabBtn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tabBtn").forEach(b => b.classList.toggle("active", b===btn));
+      const target = btn.dataset.tab;
+      document.querySelectorAll(".tabpanel").forEach(p => { p.hidden = (p.dataset.tabpanel !== target); });
+    });
+  });
+
+  // ---------- Mask (rectangular window, rest -> black) ----------
+  let maskRect = null;    // fractions {fx,fy,fw,fh} relative to videoCanvas
+  let maskActive = false;
+  let dragging = false;
+  let dragStart = null, dragCur = null;
+
+  const maskResetBtn = document.getElementById("maskResetBtn");
+  const maskTag = document.getElementById("maskTag");
+
+  function updateMaskUI(){
+    maskResetBtn.disabled = !maskActive;
+    if(maskActive && maskRect){
+      maskTag.innerHTML = `Maske: <b>an</b> · ${Math.round(maskRect.fw*VW)}×${Math.round(maskRect.fh*VH)}px`;
+    } else {
+      maskTag.innerHTML = "Maske: <b>aus</b>";
+    }
+  }
+  maskResetBtn.addEventListener("click", () => { maskActive = false; maskRect = null; updateMaskUI(); });
+
+  function canvasCoords(ev){
+    const rect = videoCanvas.getBoundingClientRect();
+    const sx = VW / rect.width, sy = VH / rect.height;
+    return { x: (ev.clientX - rect.left) * sx, y: (ev.clientY - rect.top) * sy };
+  }
+
+  videoCanvas.addEventListener("pointerdown", (ev) => {
+    dragStart = canvasCoords(ev);
+    dragCur = dragStart;
+    dragging = true;
+    try{ videoCanvas.setPointerCapture(ev.pointerId); }catch(e){}
+  });
+  videoCanvas.addEventListener("pointermove", (ev) => {
+    if(!dragging) return;
+    dragCur = canvasCoords(ev);
+  });
+  videoCanvas.addEventListener("pointerup", (ev) => {
+    if(!dragging) return;
+    dragging = false;
+    const end = canvasCoords(ev);
+    const dx = Math.abs(end.x - dragStart.x), dy = Math.abs(end.y - dragStart.y);
+    if(dx < 6 && dy < 6){
+      pickAt(dragStart.x, dragStart.y, ev);
+    } else {
+      const x0 = Math.max(0, Math.min(dragStart.x, end.x));
+      const y0 = Math.max(0, Math.min(dragStart.y, end.y));
+      const x1 = Math.min(VW, Math.max(dragStart.x, end.x));
+      const y1 = Math.min(VH, Math.max(dragStart.y, end.y));
+      if((x1-x0) > 4 && (y1-y0) > 4){
+        maskRect = { fx: x0/VW, fy: y0/VH, fw: (x1-x0)/VW, fh: (y1-y0)/VH };
+        maskActive = true;
+        updateMaskUI();
+      }
+    }
+    dragStart = null; dragCur = null;
+  });
+
+  // ---------- Masked draw helper (shared by preview + sampling canvas) ----------
+  // Zoom is a center-crop of the live video before it's drawn, so everything
+  // downstream (color picking, masking, vectorscope/waveform sampling) already
+  // operates on the zoomed view for free, since they all read from this canvas.
+  function drawVideoInto(ctx, cw, ch){
+    if(zoomEnabled){
+      const vw = video.videoWidth || cw, vh = video.videoHeight || ch;
+      const sw = vw/ZOOM_FACTOR, sh = vh/ZOOM_FACTOR;
+      ctx.drawImage(video, (vw-sw)/2, (vh-sh)/2, sw, sh, 0, 0, cw, ch);
+    } else {
+      ctx.drawImage(video, 0, 0, cw, ch);
+    }
+  }
+  function drawMaskedFrame(ctx, cw, ch){
+    const filterStr = blurEnabled ? `blur(${BLUR_PX}px)` : "none";
+    if(maskActive && maskRect){
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0,0,cw,ch);
+      ctx.save();
+      ctx.filter = filterStr;
+      ctx.beginPath();
+      ctx.rect(maskRect.fx*cw, maskRect.fy*ch, maskRect.fw*cw, maskRect.fh*ch);
+      ctx.clip();
+      if(mirrored){ ctx.translate(cw,0); ctx.scale(-1,1); }
+      drawVideoInto(ctx, cw, ch);
+      ctx.restore();
+    } else {
+      ctx.save();
+      ctx.filter = filterStr;
+      if(mirrored){ ctx.translate(cw,0); ctx.scale(-1,1); }
+      drawVideoInto(ctx, cw, ch);
+      ctx.restore();
+    }
+  }
+
+  // ---------- Vectorscope ----------
+  const scopeCanvas = document.getElementById("scopeCanvas");
+  const scopeCtx = scopeCanvas.getContext("2d");
+  const SIZE = scopeCanvas.width;
+  const CX = SIZE/2, CY = SIZE/2;
+  const R_PX = SIZE*0.43;
+  let scale; // recomputed per color profile in applyProfile()
+
+  const scopeGraticule = document.createElement("canvas");
+  scopeGraticule.width = SIZE; scopeGraticule.height = SIZE;
+  const sgCtx = scopeGraticule.getContext("2d");
+
+  const targets = [
+    ["R",[255,0,0]], ["Yl",[255,255,0]], ["G",[0,255,0]],
+    ["Cy",[0,255,255]], ["B",[0,0,255]], ["Mg",[255,0,255]]
+  ];
+
+  function recomputeScale(){
+    let maxC = 0;
+    targets.forEach(([,rgb]) => { const [u,v] = computeUV(...rgb); maxC = Math.max(maxC, Math.hypot(u,v)); });
+    scale = R_PX / maxC;
+  }
+
+  function drawScopeGraticule(){
+    sgCtx.clearRect(0,0,SIZE,SIZE);
+    sgCtx.fillStyle = "#060907"; sgCtx.fillRect(0,0,SIZE,SIZE);
+    sgCtx.strokeStyle = "rgba(91,224,138,0.16)"; sgCtx.lineWidth = 1;
+    [0.25,0.5,0.75,1.0].forEach(f => { sgCtx.beginPath(); sgCtx.arc(CX,CY, R_PX*f, 0, Math.PI*2); sgCtx.stroke(); });
+    sgCtx.beginPath();
+    sgCtx.moveTo(CX-R_PX,CY); sgCtx.lineTo(CX+R_PX,CY);
+    sgCtx.moveTo(CX,CY-R_PX); sgCtx.lineTo(CX,CY+R_PX);
+    sgCtx.stroke();
+    for(let a=0; a<360; a+=30){
+      const rad = a*Math.PI/180;
+      const x1 = CX + Math.cos(rad)*R_PX*0.96, y1 = CY - Math.sin(rad)*R_PX*0.96;
+      const x2 = CX + Math.cos(rad)*R_PX, y2 = CY - Math.sin(rad)*R_PX;
+      sgCtx.beginPath(); sgCtx.moveTo(x1,y1); sgCtx.lineTo(x2,y2); sgCtx.stroke();
+    }
+    sgCtx.font = "11px 'JetBrains Mono', monospace";
+    targets.forEach(([label, rgb]) => {
+      const [u,v] = computeUV(...rgb);
+      const x = CX + u*scale, y = CY - v*scale;
+      sgCtx.strokeStyle = "rgba(227,169,74,0.85)"; sgCtx.lineWidth = 1.2;
+      sgCtx.strokeRect(x-5, y-5, 10, 10);
+      sgCtx.fillStyle = "rgba(227,169,74,0.85)";
+      const lx = x + (u>=0 ? 8 : -8 - sgCtx.measureText(label).width);
+      sgCtx.fillText(label, lx, y+4);
+    });
+
+    const [urR,vrR] = computeUV(255,0,0);
+    const [urY,vrY] = computeUV(255,255,0);
+    const angR = Math.atan2(vrR,urR);
+    const angY = Math.atan2(vrY,urY);
+    const angSkin = angR + (angY-angR)/3;
+    sgCtx.save();
+    sgCtx.setLineDash([5,4]);
+    sgCtx.strokeStyle = "rgba(255,180,150,0.6)";
+    sgCtx.lineWidth = 1.3;
+    sgCtx.beginPath();
+    sgCtx.moveTo(CX,CY);
+    sgCtx.lineTo(CX+Math.cos(angSkin)*R_PX, CY-Math.sin(angSkin)*R_PX);
+    sgCtx.stroke();
+    sgCtx.restore();
+    sgCtx.fillStyle = "rgba(255,180,150,0.85)";
+    sgCtx.font = "10px 'JetBrains Mono', monospace";
+    sgCtx.fillText("Skin", CX+Math.cos(angSkin)*R_PX*0.72+4, CY-Math.sin(angSkin)*R_PX*0.72);
+  }
+
+  const scopeTrace = document.createElement("canvas");
+  scopeTrace.width = SIZE; scopeTrace.height = SIZE;
+  const stCtx = scopeTrace.getContext("2d");
+
+  const chartMarkers = document.createElement("canvas");
+  chartMarkers.width = SIZE; chartMarkers.height = SIZE;
+  const cmCtx = chartMarkers.getContext("2d");
+  function drawChartMarkers(){
+    cmCtx.clearRect(0,0,SIZE,SIZE);
+    CHART_LAB.forEach((p, i) => {
+      const [u,v] = computeUV(...p.rgb);
+      const x = CX + u*scale, y = CY - v*scale;
+      cmCtx.fillStyle = toHex(...p.rgb);
+      cmCtx.fillRect(x-4, y-4, 8, 8);
+      cmCtx.strokeStyle = "rgba(255,255,255,0.7)";
+      cmCtx.lineWidth = 1;
+      cmCtx.strokeRect(x-4, y-4, 8, 8);
+      cmCtx.fillStyle = "rgba(10,14,12,0.9)";
+      cmCtx.font = "8px 'JetBrains Mono', monospace";
+      cmCtx.fillText(String(i+1), x-3, y+3);
+    });
+  }
+
+  // ---------- Chromaticity diagram (sRGB gamut + Planckian locus) ----------
+  const chromaCanvas = document.getElementById("chromaCanvas");
+  const chromaCtx = chromaCanvas.getContext("2d");
+  const CH_W = chromaCanvas.width, CH_H = chromaCanvas.height;
+  const CH_M = 30;
+  // Zoomed into the relevant RGB working range rather than the full CIE horseshoe
+  const CH_XMIN=0.1, CH_XMAX=0.7, CH_YMIN=0.0, CH_YMAX=0.7;
+
+  // >>> Adjust this if the accurate chromaticity coloring is too strong/weak <<<
+  // 0 = off (plain dark background), 1 = fully opaque colors.
+  const CHROMA_COLOR_ALPHA = 0.1;
+
+  function chromaPx(x,y){
+    return [
+      CH_M + (x-CH_XMIN)/(CH_XMAX-CH_XMIN)*(CH_W-2*CH_M),
+      (CH_H-CH_M) - (y-CH_YMIN)/(CH_YMAX-CH_YMIN)*(CH_H-2*CH_M)
+    ];
+  }
+  const chromaGraticule = document.createElement("canvas");
+  chromaGraticule.width = CH_W; chromaGraticule.height = CH_H;
+  const cgCtx = chromaGraticule.getContext("2d");
+
+  // Colors the plot area with the actual sRGB hue each xy coordinate
+  // represents (at Y=1, gamut-edge hues rescaled rather than clipped).
+  function drawChromaColorField(){
+    const img = cgCtx.createImageData(CH_W, CH_H);
+    const data = img.data;
+    const plotW = CH_W-2*CH_M, plotH = CH_H-2*CH_M;
+    const alpha255 = Math.round(Math.max(0, Math.min(1, CHROMA_COLOR_ALPHA)) * 255);
+    for(let py=CH_M; py<CH_H-CH_M; py++){
+      const y = CH_YMIN + ((CH_H-CH_M)-py)/plotH*(CH_YMAX-CH_YMIN);
+      for(let px=CH_M; px<CH_W-CH_M; px++){
+        const x = CH_XMIN + (px-CH_M)/plotW*(CH_XMAX-CH_XMIN);
+        const idx = (py*CH_W+px)*4;
+        if(y <= 0.002){ data[idx+3] = 0; continue; }
+        const [r,g,b] = xyYToSrgb(x,y,1);
+        data[idx] = r; data[idx+1] = g; data[idx+2] = b; data[idx+3] = alpha255;
+      }
+    }
+    cgCtx.putImageData(img, 0, 0);
+  }
+
+  function drawChromaGraticule(){
+    cgCtx.clearRect(0,0,CH_W,CH_H);
+    cgCtx.fillStyle = "#060907"; cgCtx.fillRect(0,0,CH_W,CH_H);
+    drawChromaColorField();
+    cgCtx.strokeStyle = "rgba(0,0,0,0.4)"; cgCtx.lineWidth = 1;
+    cgCtx.fillStyle = "rgba(0,0,0,0.75)";
+    cgCtx.font = "9px 'JetBrains Mono', monospace";
+    for(let gx=Math.ceil(CH_XMIN*10)/10; gx<=CH_XMAX+0.01; gx+=0.1){
+      const [px0,py0] = chromaPx(gx,CH_YMIN), [px1,py1] = chromaPx(gx,CH_YMAX);
+      cgCtx.beginPath(); cgCtx.moveTo(px0,py0); cgCtx.lineTo(px1,py1); cgCtx.stroke();
+      cgCtx.fillText(gx.toFixed(1), px0-8, CH_H-CH_M+14);
+    }
+    for(let gy=Math.ceil(CH_YMIN*10)/10; gy<=CH_YMAX+0.01; gy+=0.1){
+      const [px0,py0] = chromaPx(CH_XMIN,gy), [px1,py1] = chromaPx(CH_XMAX,gy);
+      cgCtx.beginPath(); cgCtx.moveTo(px0,py0); cgCtx.lineTo(px1,py1); cgCtx.stroke();
+      cgCtx.fillText(gy.toFixed(1), 4, py0+3);
+    }
+    // sRGB triangle
+    const PRIM = { R:[0.6400,0.3300], G:[0.3000,0.6000], B:[0.1500,0.0600] };
+    cgCtx.strokeStyle = "rgba(227,169,74,0.85)"; cgCtx.lineWidth = 1.4;
+    cgCtx.beginPath();
+    const pR = chromaPx(...PRIM.R), pG = chromaPx(...PRIM.G), pB = chromaPx(...PRIM.B);
+    cgCtx.moveTo(...pR); cgCtx.lineTo(...pG); cgCtx.lineTo(...pB); cgCtx.closePath(); cgCtx.stroke();
+    cgCtx.fillStyle = "rgba(227,169,74,0.9)";
+    cgCtx.fillText("R", pR[0]+5, pR[1]);
+    cgCtx.fillText("G", pG[0]+5, pG[1]);
+    cgCtx.fillText("B", pB[0]+5, pB[1]);
+    // D65 white point (black+white double stroke for contrast on any background hue)
+    const pW = chromaPx(0.3127,0.3290);
+    cgCtx.lineWidth = 3; cgCtx.strokeStyle = "rgba(0,0,0,0.65)";
+    cgCtx.beginPath(); cgCtx.moveTo(pW[0]-5,pW[1]); cgCtx.lineTo(pW[0]+5,pW[1]); cgCtx.moveTo(pW[0],pW[1]-5); cgCtx.lineTo(pW[0],pW[1]+5); cgCtx.stroke();
+    cgCtx.lineWidth = 1.2; cgCtx.strokeStyle = "rgba(255,255,255,0.95)";
+    cgCtx.beginPath(); cgCtx.moveTo(pW[0]-5,pW[1]); cgCtx.lineTo(pW[0]+5,pW[1]); cgCtx.moveTo(pW[0],pW[1]-5); cgCtx.lineTo(pW[0],pW[1]+5); cgCtx.stroke();
+    cgCtx.fillStyle = "rgba(0,0,0,0.7)"; cgCtx.fillText("D65", pW[0]+7, pW[1]+11);
+    cgCtx.fillStyle = "rgba(255,255,255,0.95)"; cgCtx.fillText("D65", pW[0]+6, pW[1]+10);
+    // Planckian locus - only from 2500K up: Kim's approximation gets visibly
+    // inaccurate/kinked below that, so the curve is clipped there deliberately
+    const T_POINTS = [2500,2800,3200,3600,4000,4500,5000,5500,6000,6500,7000,8000,9000,10000,12000,15000,20000];
+    const locusPts = T_POINTS.map(T => chromaPx(...planckianXY(T)));
+    [["rgba(0,0,0,0.55)",3.2],["rgba(255,201,153,0.95)",1.6]].forEach(([color,w]) => {
+      cgCtx.strokeStyle = color; cgCtx.lineWidth = w;
+      cgCtx.beginPath();
+      locusPts.forEach(([px,py],i) => { if(i===0) cgCtx.moveTo(px,py); else cgCtx.lineTo(px,py); });
+      cgCtx.stroke();
+    });
+    [2500,3000,4000,5000,6500,8000,10000].forEach(T => {
+      const [x,y] = planckianXY(T);
+      const [px,py] = chromaPx(x,y);
+      cgCtx.fillStyle = "rgba(0,0,0,0.6)"; cgCtx.beginPath(); cgCtx.arc(px,py,2.6,0,Math.PI*2); cgCtx.fill();
+      cgCtx.fillStyle = "rgba(255,201,153,0.95)"; cgCtx.beginPath(); cgCtx.arc(px,py,2,0,Math.PI*2); cgCtx.fill();
+      cgCtx.fillStyle = "rgba(0,0,0,0.65)"; cgCtx.fillText(T+"K", px+6, py-2);
+      cgCtx.fillStyle = "rgba(255,201,153,0.95)"; cgCtx.fillText(T+"K", px+5, py-3);
+    });
+  }
+  drawChromaGraticule();
+
+  // 24 color-chart positions in CIE xy space - profile-independent (unlike the
+  // vectorscope's version), so this only needs to be built once.
+  const chromaChartMarkers = document.createElement("canvas");
+  chromaChartMarkers.width = CH_W; chromaChartMarkers.height = CH_H;
+  const ccmCtx = chromaChartMarkers.getContext("2d");
+  (function drawChromaChartMarkers(){
+    CHART_LAB.forEach((p, i) => {
+      const [x,y] = rgbToXy(...p.rgb);
+      const [px,py] = chromaPx(x,y);
+      ccmCtx.fillStyle = toHex(...p.rgb);
+      ccmCtx.fillRect(px-4, py-4, 8, 8);
+      ccmCtx.strokeStyle = "rgba(255,255,255,0.7)";
+      ccmCtx.lineWidth = 1;
+      ccmCtx.strokeRect(px-4, py-4, 8, 8);
+      ccmCtx.fillStyle = "rgba(10,14,12,0.9)";
+      ccmCtx.font = "8px 'JetBrains Mono', monospace";
+      ccmCtx.fillText(String(i+1), px-3, py+3);
+    });
+  })();
+
+  function composeChromaFrame(){
+    chromaCtx.clearRect(0,0,CH_W,CH_H);
+    chromaCtx.drawImage(chromaGraticule,0,0);
+    if(showChartMarkers) chromaCtx.drawImage(chromaChartMarkers,0,0);
+    if(pickedRgb){
+      const [x,y] = rgbToXy(...pickedRgb);
+      const [px,py] = chromaPx(x,y);
+      chromaCtx.save();
+      chromaCtx.fillStyle = toHex(...pickedRgb);
+      chromaCtx.fillRect(px-5, py-5, 10, 10);
+      chromaCtx.strokeStyle = "#ffffff"; chromaCtx.lineWidth = 2;
+      chromaCtx.strokeRect(px-5, py-5, 10, 10);
+      chromaCtx.strokeStyle = "rgba(0,0,0,0.6)"; chromaCtx.lineWidth = 1;
+      chromaCtx.strokeRect(px-6.5, py-6.5, 13, 13);
+      chromaCtx.fillStyle = "#ffffff";
+      chromaCtx.font = "9px 'JetBrains Mono', monospace";
+      chromaCtx.fillText("P", px+8, py-6);
+      chromaCtx.restore();
+    }
+  }
+
+  function applyProfile(id){
+    currentProfile = id;
+    recomputeScale();
+    drawScopeGraticule();
+    drawChartMarkers();
+    document.querySelectorAll(".profileBtn").forEach(b => b.classList.toggle("active", b.dataset.profile === id));
+    if(pickedRgb) showPicked(pickedRgb);
+  }
+  applyProfile(currentProfile);
+  document.querySelectorAll(".profileBtn").forEach(b => {
+    b.addEventListener("click", () => applyProfile(b.dataset.profile));
+  });
+
+  let showChartMarkers = false;
+  const chartMarkersBtn = document.getElementById("chartMarkersBtn");
+  chartMarkersBtn.addEventListener("click", () => {
+    showChartMarkers = !showChartMarkers;
+    chartMarkersBtn.classList.toggle("active", showChartMarkers);
+    chartMarkersBtn.textContent = showChartMarkers ? "In Scope/CIE ausblenden" : "In Scope/CIE anzeigen";
+  });
+
+  let showPickerMarker = false;
+  const pickerMarkerBtn = document.getElementById("pickerMarkerBtn");
+  pickerMarkerBtn.addEventListener("click", () => {
+    showPickerMarker = !showPickerMarker;
+    pickerMarkerBtn.classList.toggle("active", showPickerMarker);
+    pickerMarkerBtn.textContent = showPickerMarker ? "Picker-Position ausblenden" : "Picker-Position anzeigen";
+  });
+
+  // ---------- Waveform (Y only) ----------
+  const wfYCanvas = document.getElementById("wfYCanvas");
+  const wfYCtx = wfYCanvas.getContext("2d");
+  const WF_W = wfYCanvas.width, WF_H = wfYCanvas.height;
+
+  function makeWfGraticule(){
+    const c = document.createElement("canvas");
+    c.width = WF_W; c.height = WF_H;
+    const g = c.getContext("2d");
+    g.fillStyle = "#060907"; g.fillRect(0,0,WF_W,WF_H);
+    g.strokeStyle = "rgba(91,224,138,0.14)"; g.lineWidth = 1;
+    g.fillStyle = "rgba(125,143,133,0.8)";
+    g.font = "10px 'JetBrains Mono', monospace";
+    [0,64,128,191,255].forEach(v => {
+      const y = WF_H - (v/255)*WF_H;
+      g.beginPath(); g.moveTo(0,y); g.lineTo(WF_W,y); g.stroke();
+      g.fillText(String(v), 4, Math.max(10, y-3));
+    });
+    for(let i=1;i<8;i++){
+      const x = (i/8)*WF_W;
+      g.beginPath(); g.moveTo(x,0); g.lineTo(x,WF_H); g.stroke();
+    }
+    return c;
+  }
+  const wfYGraticule = makeWfGraticule();
+
+  const wfYTrace = document.createElement("canvas");
+  wfYTrace.width = WF_W; wfYTrace.height = WF_H;
+  const wfYTCtx = wfYTrace.getContext("2d");
+
+  // ---------- Sampling canvas ----------
+  const SAMPLE_W = 160, SAMPLE_H = 90;
+  const sampleCanvas = document.createElement("canvas");
+  sampleCanvas.width = SAMPLE_W; sampleCanvas.height = SAMPLE_H;
+  const sCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
+
+  const gainSlider = document.getElementById("gainSlider");
+  const decaySlider = document.getElementById("decaySlider");
+  const gainVal = document.getElementById("gainVal");
+  const decayVal = document.getElementById("decayVal");
+  const decayLabels = ["kürzestes","sehr kurz","kurz","kurz-mittel","mittel","mittel-lang","lang","sehr lang","maximal"];
+
+  gainSlider.addEventListener("input", () => { gainVal.textContent = parseFloat(gainSlider.value).toFixed(1)+"×"; });
+  decaySlider.addEventListener("input", () => { decayVal.textContent = decayLabels[decaySlider.value-1]; });
+  document.getElementById("clearTraceBtn").addEventListener("click", () => {
+    stCtx.clearRect(0,0,SIZE,SIZE);
+    wfYTCtx.clearRect(0,0,WF_W,WF_H);
+  });
+
+  function fadeCanvas(ctx, w, h){
+    const decayStep = parseInt(decaySlider.value,10);
+    const alpha = 0.06 + (decayStep-1)*0.045;
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.fillStyle = "rgba(0,0,0," + alpha + ")";
+    ctx.fillRect(0,0,w,h);
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  function plotAll(){
+    drawMaskedFrame(sCtx, SAMPLE_W, SAMPLE_H);
+    let data;
+    try{ data = sCtx.getImageData(0,0,SAMPLE_W,SAMPLE_H).data; } catch(e){ return; }
+
+    const gain = parseFloat(gainSlider.value);
+
+    stCtx.globalCompositeOperation = "lighter";
+    stCtx.fillStyle = "rgba(91,224,138,0.5)";
+
+    wfYTCtx.globalCompositeOperation = "lighter";
+    wfYTCtx.fillStyle = "rgba(233,243,234,0.45)";
+
+    const npx = SAMPLE_W*SAMPLE_H;
+    for(let p=0; p<npx; p++){
+      const i = p*4;
+      const r = data[i], g = data[i+1], b = data[i+2];
+      const col = p % SAMPLE_W;
+      const wx = (col/SAMPLE_W)*WF_W;
+
+      const [u,v] = computeUV(r,g,b);
+      const vx = CX + u*scale*gain, vy = CY - v*scale*gain;
+      if(vx>=0 && vx<SIZE && vy>=0 && vy<SIZE){ stCtx.fillRect(vx,vy,1.4,1.4); }
+
+      const y = computeY(r,g,b);
+      wfYTCtx.fillRect(wx, WF_H - (y/255)*WF_H, 1.8, 1.8);
+    }
+
+    stCtx.globalCompositeOperation = "source-over";
+    wfYTCtx.globalCompositeOperation = "source-over";
+  }
+
+  function composePanel(destCtx, graticule, trace, w, h){
+    destCtx.clearRect(0,0,w,h);
+    destCtx.drawImage(graticule,0,0);
+    destCtx.globalCompositeOperation = "lighter";
+    destCtx.drawImage(trace,0,0);
+    destCtx.globalCompositeOperation = "source-over";
+  }
+
+  function composeScopeFrame(){
+    scopeCtx.clearRect(0,0,SIZE,SIZE);
+    scopeCtx.drawImage(scopeGraticule,0,0);
+    if(showChartMarkers) scopeCtx.drawImage(chartMarkers,0,0);
+    scopeCtx.globalCompositeOperation = "lighter";
+    scopeCtx.drawImage(scopeTrace,0,0);
+    scopeCtx.globalCompositeOperation = "source-over";
+    if(showPickerMarker && pickedRgb){
+      const gain = parseFloat(gainSlider.value);
+      const [u,v] = computeUV(...pickedRgb);
+      const x = CX + u*scale*gain, y = CY - v*scale*gain;
+      scopeCtx.save();
+      scopeCtx.fillStyle = toHex(...pickedRgb);
+      scopeCtx.fillRect(x-5, y-5, 10, 10);
+      scopeCtx.strokeStyle = "#ffffff";
+      scopeCtx.lineWidth = 2;
+      scopeCtx.strokeRect(x-5, y-5, 10, 10);
+      scopeCtx.strokeStyle = "rgba(0,0,0,0.6)";
+      scopeCtx.lineWidth = 1;
+      scopeCtx.strokeRect(x-6.5, y-6.5, 13, 13);
+      scopeCtx.fillStyle = "#ffffff";
+      scopeCtx.font = "9px 'JetBrains Mono', monospace";
+      scopeCtx.fillText("P", x+8, y-6);
+      scopeCtx.restore();
+    }
+  }
+
+  // ---------- Weißabgleich: zwei relative Leisten statt Absolutwert ----------
+  // Referenz ist D65 (6504K, Duv 0) - dieselbe Referenz wie im CIE-Diagramm.
+  // Beide Leisten sind symmetrisch um die Mitte (= Referenz, keine Abweichung).
+
+  // >>> Größe der Warm/Kalt-Leiste: Abweichung in Mired, die den Leistenrand erreicht <<<
+  const MAX_CCT_DEVIATION_MIRED = 110; // 100 Mired um 6504K ≈ sichtbarer Bereich ~3200K–13000K
+
+  // >>> Größe der Grün/Magenta-Leiste: Duv-Abweichung, die den Leistenrand erreicht <<<
+  const MAX_DUV_DEVIATION = 0.02;
+
+  const CCT_REF = 6504; // D65
+
+  const wbMarkerTempEl = document.getElementById("wbMarkerTemp");
+  const wbMarkerTintEl = document.getElementById("wbMarkerTint");
+  const wbValTempEl = document.getElementById("wbValTemp");
+  const wbValTintEl = document.getElementById("wbValTint");
+
+  function cctDevToPercent(cct){
+    const dev = (1e6/cct) - (1e6/CCT_REF); // + = wärmer (höheres Mired) als D65
+    const clamped = Math.max(-MAX_CCT_DEVIATION_MIRED, Math.min(MAX_CCT_DEVIATION_MIRED, dev));
+    return ((MAX_CCT_DEVIATION_MIRED - clamped) / (2*MAX_CCT_DEVIATION_MIRED)) * 100; // warm=links, kalt=rechts
+  }
+  function duvToPercent(duv){
+    const clamped = Math.max(-MAX_DUV_DEVIATION, Math.min(MAX_DUV_DEVIATION, duv));
+    return ((MAX_DUV_DEVIATION - clamped) / (2*MAX_DUV_DEVIATION)) * 100; // grün=links, magenta=rechts
+  }
+
+  function updateWhiteBalance(rgb){
+    const cct = estimateCCT(...rgb);
+    if(cct === null){
+      wbMarkerTempEl.style.display = "none";
+      wbMarkerTintEl.style.display = "none";
+      wbValTempEl.innerHTML = "— K";
+      wbValTintEl.innerHTML = "Tint —";
+      return;
+    }
+    const clampedForText = Math.max(1000, Math.min(40000, cct));
+    const duv = computeDuv(rgb[0], rgb[1], rgb[2], clampedForText);
+    const duvScaled = duv*1000;
+    const gmText = (duvScaled>=0 ? "+" : "-") + Math.abs(duvScaled).toFixed(1) + (duvScaled>=0 ? "G" : "M");
+
+    wbMarkerTempEl.style.display = "block";
+    wbMarkerTempEl.style.left = cctDevToPercent(clampedForText) + "%";
+    wbValTempEl.innerHTML = `≈ <b>${Math.round(clampedForText)} K</b>`;
+
+    wbMarkerTintEl.style.display = "block";
+    wbMarkerTintEl.style.left = duvToPercent(duv) + "%";
+    wbValTintEl.innerHTML = `<b>${gmText}</b>`;
+  }
+
+  // ---------- Main render loop ----------
+  function frame(){
+    if(!frozen && video.readyState >= 2){
+      drawMaskedFrame(vCtx, VW, VH);
+
+      if(livePickPos){
+        let d;
+        try{ d = vCtx.getImageData(livePickPos.x, livePickPos.y, 1, 1).data; } catch(e){ d = null; }
+        if(d) showPicked([d[0], d[1], d[2]]);
+      }
+
+      vCtx.save();
+      if(dragging && dragStart && dragCur){
+        const x0 = Math.min(dragStart.x, dragCur.x), y0 = Math.min(dragStart.y, dragCur.y);
+        const w0 = Math.abs(dragCur.x-dragStart.x), h0 = Math.abs(dragCur.y-dragStart.y);
+        vCtx.fillStyle = "rgba(227,169,74,0.12)";
+        vCtx.fillRect(x0,y0,w0,h0);
+        vCtx.strokeStyle = "rgba(227,169,74,0.9)"; vCtx.lineWidth = 1.5;
+        vCtx.strokeRect(x0,y0,w0,h0);
+      } else if(maskActive && maskRect){
+        vCtx.strokeStyle = "rgba(227,169,74,0.85)"; vCtx.lineWidth = 1.5;
+        vCtx.strokeRect(maskRect.fx*VW, maskRect.fy*VH, maskRect.fw*VW, maskRect.fh*VH);
+      }
+      vCtx.restore();
+
+      fadeCanvas(stCtx, SIZE, SIZE);
+      fadeCanvas(wfYTCtx, WF_W, WF_H);
+      plotAll();
+    }
+    composeScopeFrame();
+    composePanel(wfYCtx, wfYGraticule, wfYTrace, WF_W, WF_H);
+    composeChromaFrame();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- Color picker ----------
+  const pickedSwatch = document.getElementById("pickedSwatch");
+  const valHex = document.getElementById("valHex");
+  const valRgb = document.getElementById("valRgb");
+  const valLab = document.getElementById("valLab");
+  const valUv = document.getElementById("valUv");
+  const matchSwatch = document.getElementById("matchSwatch");
+  const matchName = document.getElementById("matchName");
+  const matchRgb = document.getElementById("matchRgb");
+  const matchDe = document.getElementById("matchDe");
+
+  const BAR_MAX_H = 145; // px, matches .bar-track usable height
+  const barEls = {
+    rNow: document.getElementById("barRNow"), rIdeal: document.getElementById("barRIdeal"),
+    gNow: document.getElementById("barGNow"), gIdeal: document.getElementById("barGIdeal"),
+    bNow: document.getElementById("barBNow"), bIdeal: document.getElementById("barBIdeal"),
+    yNow: document.getElementById("barYNow"), yIdeal: document.getElementById("barYIdeal")
+  };
+  const barVals = {
+    rNow: document.getElementById("valBarRNow"), rIdeal: document.getElementById("valBarRIdeal"),
+    gNow: document.getElementById("valBarGNow"), gIdeal: document.getElementById("valBarGIdeal"),
+    bNow: document.getElementById("valBarBNow"), bIdeal: document.getElementById("valBarBIdeal"),
+    yNow: document.getElementById("valBarYNow"), yIdeal: document.getElementById("valBarYIdeal")
+  };
+  function setBar(key, value){
+    const h = Math.round(Math.max(0, Math.min(255, value))/255 * BAR_MAX_H);
+    barEls[key].style.height = h + "px";
+    barVals[key].textContent = Math.round(value);
+  }
+
+  function showPicked(rgb, forcedIdx){
+    const [r,g,b] = rgb;
+    pickedRgb = [r,g,b];
+    pickedSwatch.style.background = toHex(r,g,b);
+    valHex.textContent = toHex(r,g,b);
+    valRgb.textContent = `${r}, ${g}, ${b}`;
+    const lab = rgbToLab(r,g,b);
+    valLab.textContent = `${lab[0].toFixed(1)}, ${lab[1].toFixed(1)}, ${lab[2].toFixed(1)}`;
+    const yPick = computeY(r,g,b);
+    const [u,v] = computeUV(r,g,b);
+    valUv.textContent = `${u.toFixed(1)}, ${v.toFixed(1)}`;
+    setBar("rNow", r); setBar("gNow", g); setBar("bNow", b); setBar("yNow", yPick);
+    updateWhiteBalance([r,g,b]);
+
+    let bestIdx = forcedIdx, bestDist = 0;
+    function yuvDist(prgb){
+      const py = computeY(...prgb);
+      const [pu,pv] = computeUV(...prgb);
+      return Math.hypot(yPick-py, u-pu, v-pv);
+    }
+    if(forcedIdx === undefined){
+      bestDist = Infinity;
+      CHART_LAB.forEach((p, i) => { const d = yuvDist(p.rgb); if(d < bestDist){ bestDist = d; bestIdx = i; } });
+    } else {
+      bestDist = yuvDist(CHART_LAB[forcedIdx].rgb);
+    }
+    const match = CHART_LAB[bestIdx];
+    matchSwatch.style.background = toHex(...match.rgb);
+    matchName.textContent = `${bestIdx+1} · ${match.name}`;
+    matchRgb.textContent = `RGB ${match.rgb.join(", ")}`;
+    const deClass = bestDist < 8 ? "de-good" : bestDist < 20 ? "de-ok" : "de-bad";
+    matchDe.innerHTML = `Y′UV-Δ <span class="${deClass}">${bestDist.toFixed(1)}</span>`;
+    setBar("rIdeal", match.rgb[0]); setBar("gIdeal", match.rgb[1]); setBar("bIdeal", match.rgb[2]);
+    setBar("yIdeal", computeY(...match.rgb));
+
+    document.querySelectorAll(".patch").forEach(p => p.classList.remove("nearest"));
+    const el = patchesEl.children[bestIdx];
+    if(el) el.classList.add("nearest");
+  }
+
+  function pickAt(x, y, ev){
+    const px = Math.round(x), py = Math.round(y);
+    livePickPos = { x: px, y: py };
+    let data;
+    try{ data = vCtx.getImageData(px, py, 1, 1).data; } catch(e){ return; }
+    showPicked([data[0], data[1], data[2]]);
+    const rect = videoCanvas.getBoundingClientRect();
+    crosshair.style.display = "block";
+    crosshair.style.left = (ev.clientX - rect.left) + "px";
+    crosshair.style.top = (ev.clientY - rect.top) + "px";
+  }
+
+  navigator.mediaDevices?.addEventListener?.("devicechange", listCams);
+  updateMaskUI();
+})();
+</script>
+</body>
+</html>
