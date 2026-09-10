@@ -67,7 +67,7 @@
   @media (max-width: 980px) {
     .gridrow, .gridrow.row1, .gridrow.row2 { grid-template-columns: 1fr; }
   }
-  .row2-panel { max-height: 280px; overflow-y: auto; }
+  .row2-panel { min-height: 0; }
 
   .panel { background: var(--panel); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
   .panel h2 {
@@ -123,15 +123,26 @@
 
   /* ---- White balance bar ---- */
   .wbtitle { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); font-weight: 500; }
+  summary.camsettings-summary {
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); font-weight: 500;
+    cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between;
+  }
+  summary.camsettings-summary::-webkit-details-marker { display: none; }
+  summary.camsettings-summary::after { content: "▸"; font-size: 10px; color: var(--text-dimmer); transition: transform 0.15s; }
+  details[open] summary.camsettings-summary::after { transform: rotate(90deg); }
   .wbrow { display: flex; align-items: center; gap: 8px; }
   .wbbar-outer { position: relative; flex: 1; }
   .wbbar { height: 16px; border: 1px solid var(--line-bright); }
   .wbbar-temp { background: linear-gradient(to right, #ffcf9e, #f4f1ea 50%, #b9d4ff); }
   .wbbar-tint { background: linear-gradient(to right, #9be6a8, #f0f2ee 50%, #f2a8e0); }
+  .wbcenterline {
+    position: absolute; left: 50%; top: 0; bottom: 0; width: 1px;
+    background: rgba(0,0,0,0.4); pointer-events: none; transform: translateX(-0.5px);
+  }
   .wbmarker {
-    position: absolute; top: -8px; width: 0; height: 0; pointer-events: none;
-    border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 8px solid var(--amber);
-    transform: translateX(-50%); transition: left 0.12s linear; display: none;
+    position: absolute; top: 50%; width: 11px; height: 11px; border-radius: 50%;
+    background: var(--bg); border: 1px solid rgba(0,0,0,0.4); box-sizing: border-box;
+    transform: translate(-50%, -50%); transition: left 0.12s linear; pointer-events: none; display: none;
   }
   .wbval { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; min-width: 88px; text-align: right; }
   .wbval b { color: var(--phosphor-bright); font-weight: 500; }
@@ -148,12 +159,12 @@
   .de-ok { color: var(--amber); }
   .de-bad { color: var(--danger); }
 
-  .patches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 4px; }
-  .patch { aspect-ratio: 2/1; border: 1px solid var(--line-bright); position: relative; cursor: pointer; }
+  .patches { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(4, 1fr); gap: 4px; margin-bottom: 4px; }
+  .patch { border: 1px solid var(--line-bright); position: relative; cursor: pointer; }
   .patch.nearest { border: 2px solid var(--amber); box-shadow: 0 0 0 1px var(--amber); }
   .patch .num { position: absolute; top: 2px; left: 3px; font-family: var(--font-mono); font-size: 9px; color: rgba(255,255,255,0.55); mix-blend-mode: difference; }
 
-  .barchart { display: flex; gap: 10px; height: 175px; padding: 6px 4px 0; }
+  .barchart { flex: 1; min-height: 0; display: flex; gap: 10px; padding: 6px 4px 0; }
   .bargroup { display: flex; gap: 6px; flex: 1; height: 100%; border-right: 1px solid var(--line); padding-right: 10px; }
   .bargroup:last-child { border-right: none; padding-right: 0; }
   .bar-col { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; }
@@ -204,27 +215,25 @@
       </div>
       <div class="hint-below">Klick = Pixel aufnehmen · Ziehen = Maske</div>
       <div class="row">
-        <select id="camSelect" style="flex:1; min-width:120px;"></select>
-      </div>
-      <div id="camSettingsSection" style="border-top:1px solid var(--line); padding-top:10px; margin-top:2px; display:flex; flex-direction:column; gap:10px;">
-        <div class="wbtitle">Kameraeinstellungen</div>
-        <div id="camSettingsBody" style="display:flex; flex-direction:column; gap:10px;"></div>
-      </div>
-      <div class="row">
         <button id="freezeBtn">Standbild</button>
         <button id="mirrorBtn" class="active">Spiegeln</button>
         <button id="blurBtn">Weichzeichnen</button>
         <button id="zoomBtn">Zoom ×2</button>
+        <button id="maskResetBtn" disabled>Maske: aus</button>
       </div>
       <div class="row">
-        <button id="maskResetBtn" disabled>Maske zurücksetzen</button>
-        <span class="masktag" id="maskTag">Maske: <b>aus</b></span>
+        <select id="camSelect" style="flex:1; min-width:120px;"></select>
       </div>
+      <details id="camSettingsDetails" style="border-top:1px solid var(--line); padding-top:10px; margin-top:2px;">
+        <summary class="camsettings-summary">Kameraeinstellungen</summary>
+        <div id="camSettingsBody" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
+      </details>
       <div class="wbsection" style="border-top:1px solid var(--line); padding-top:10px; margin-top:2px; display:flex; flex-direction:column; gap:6px;">
-        <div class="wbtitle">Weißabgleich (relativ zu D65)</div>
+        <div class="wbtitle">Weißabgleich (relativ)</div>
         <div class="wbrow">
           <div class="wbbar-outer">
             <div class="wbbar wbbar-temp"></div>
+            <div class="wbcenterline"></div>
             <div class="wbmarker" id="wbMarkerTemp"></div>
           </div>
           <span class="wbval" id="wbValTemp">— K</span>
@@ -232,6 +241,7 @@
         <div class="wbrow">
           <div class="wbbar-outer">
             <div class="wbbar wbbar-tint"></div>
+            <div class="wbcenterline"></div>
             <div class="wbmarker" id="wbMarkerTint"></div>
           </div>
           <span class="wbval" id="wbValTint">Tint —</span>
@@ -250,7 +260,7 @@
         <canvas id="scopeCanvas" width="440" height="440"></canvas>
         <div class="field">
           <div class="valline"><span>Gain</span><span id="gainVal">1.0×</span></div>
-          <input type="range" id="gainSlider" min="0.5" max="3" step="0.1" value="1">
+          <input type="range" id="gainSlider" min="0.5" max="2.5" step="0.1" value="1">
         </div>
         <div class="row">
           <button id="pickerMarkerBtn">Picker-Position anzeigen</button>
@@ -270,7 +280,7 @@
   <!-- ROW 2: chart / colorpicker / RGB+Luma jetzt-vs-ideal bars -->
   <div class="gridrow row2">
     <div class="panel row2-panel">
-      <h2>24-Felder Color Checker
+      <h2>24-Felder-Farbtafel
         <span class="legend" style="gap:8px;">
           <span style="font-family:var(--font-mono);">sRGB · D65</span>
           <button id="chartMarkersBtn" style="font-size:10px; padding:4px 8px;">In Scope/CIE anzeigen</button>
@@ -299,63 +309,60 @@
     </div>
 
     <div class="panel row2-panel">
-      <h2>RGB + Luma: Jetzt / Ideal
-        <span class="legend"><span><i style="background:var(--text-dim); border-radius:2px;"></i>Jetzt</span><span><i style="background:transparent; border:1.5px solid var(--text-dim); border-radius:2px;"></i>Ideal</span></span>
-      </h2>
+      <h2>RGB + Luma: IST / SOLL</h2>
       <div class="barchart" id="rgbBars">
         <div class="bargroup">
           <div class="bar-col">
             <div class="bar-track"><div class="bar now" id="barRNow" style="background:var(--ch-r);"></div></div>
-            <div class="barlabel">R jetzt<b id="valBarRNow">—</b></div>
+            <div class="barlabel">R IST<b id="valBarRNow">—</b></div>
           </div>
           <div class="bar-col">
             <div class="bar-track"><div class="bar ideal" id="barRIdeal" style="border-color:var(--ch-r);"></div></div>
-            <div class="barlabel">R ideal<b id="valBarRIdeal">—</b></div>
+            <div class="barlabel">R SOLL<b id="valBarRIdeal">—</b></div>
           </div>
         </div>
         <div class="bargroup">
           <div class="bar-col">
             <div class="bar-track"><div class="bar now" id="barGNow" style="background:var(--ch-g);"></div></div>
-            <div class="barlabel">G jetzt<b id="valBarGNow">—</b></div>
+            <div class="barlabel">G IST<b id="valBarGNow">—</b></div>
           </div>
           <div class="bar-col">
             <div class="bar-track"><div class="bar ideal" id="barGIdeal" style="border-color:var(--ch-g);"></div></div>
-            <div class="barlabel">G ideal<b id="valBarGIdeal">—</b></div>
+            <div class="barlabel">G SOLL<b id="valBarGIdeal">—</b></div>
           </div>
         </div>
         <div class="bargroup">
           <div class="bar-col">
             <div class="bar-track"><div class="bar now" id="barBNow" style="background:var(--ch-b);"></div></div>
-            <div class="barlabel">B jetzt<b id="valBarBNow">—</b></div>
+            <div class="barlabel">B IST<b id="valBarBNow">—</b></div>
           </div>
           <div class="bar-col">
             <div class="bar-track"><div class="bar ideal" id="barBIdeal" style="border-color:var(--ch-b);"></div></div>
-            <div class="barlabel">B ideal<b id="valBarBIdeal">—</b></div>
+            <div class="barlabel">B SOLL<b id="valBarBIdeal">—</b></div>
           </div>
         </div>
         <div class="bargroup">
           <div class="bar-col">
             <div class="bar-track"><div class="bar now" id="barYNow" style="background:var(--ch-y);"></div></div>
-            <div class="barlabel">Y jetzt<b id="valBarYNow">—</b></div>
+            <div class="barlabel">Y IST<b id="valBarYNow">—</b></div>
           </div>
           <div class="bar-col">
             <div class="bar-track"><div class="bar ideal" id="barYIdeal" style="border-color:var(--ch-y);"></div></div>
-            <div class="barlabel">Y ideal<b id="valBarYIdeal">—</b></div>
+            <div class="barlabel">Y SOLL<b id="valBarYIdeal">—</b></div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <footer>Webcam-Signal live als Vektor-, Waveform- und Chromatizitäts-Monitor, plus Pixel-Colorpicker gegen eine 24-Felder-Farbtafel. 
+  <footer>
   Farbfeld-Match = kleinster euklidischer Abstand im Y′UV-Raum (Luma + Vektorskop-Ebene) zum aktuellen Farbprofil, nicht per RGB · 
-  Farbtemperatur = McCamy-Näherung aus der CIE-xy-Chromatizität, G/M-Wert = Duv (Abstand von der Planckschen Kurve in CIE-1960-uv, ×1000), beides nur bei annähernd achromatischen (grauen/weißen) Farben sinnvoll · 
-  Referenzwerte sind gängige sRGB-Näherungen einer 24-Felder-Farbtafel, keine Herstellermessung. Maske: rechteckiger Bereich bleibt sichtbar und fließt in Analyse ein, Rest wird schwarz maskiert.
-  Farbtiefe pro Kanal ist über Web-Kamera-APIs nicht abfragbar/einstellbar – 
-  Browser liefern grundsätzlich 8-Bit pro Kanal. Nur was der Browser/die Kamera tatsächlich meldet, erscheint hier. 
-  Vereinfachtes CIE-xy-Diagramm: sRGB-Dreieck, Planckscher Kurvenzug (Schwarzkörper) und die Position der aktuell gepickten Farbe. 
-  chmee v14.1 sep-2026
-</footer>
+  Farbtemperatur = McCamy-Näherung aus der CIE-xy-Chromatizität, G/M-Wert = Duv (Abstand von der Planckschen Kurve in CIE-1960-uv, ×1000), beides nur bei annähernd achromatischen (grauen/weißen) Farben sinnvoll · Referenzwerte sind gängige sRGB-Näherungen einer 24-Felder-Farbtafel, keine Herstellermessung. Maske: rechteckiger Bereich bleibt sichtbar und fließt in Analyse ein, Rest wird schwarz maskiert.
+  Webcam-Signal live als Vektor-, Waveform- und Chromatizitäts-Monitor, plus Pixel-Colorpicker gegen eine 24-Felder-Farbtafel.
+  Vereinfachtes CIE-xy-Diagramm: sRGB-Dreieck, Planckscher Kurvenzug (Schwarzkörper) und die Position der aktuell gepickten Farbe.
+  Farbtiefe pro Kanal ist über Web-Kamera-APIs nicht abfragbar/einstellbar – Browser liefern grundsätzlich 8-Bit pro Kanal. Nur was der Browser/die Kamera tatsächlich meldet, erscheint hier.
+  chmee v15.4 Sep-2026
+  </footer>
 </div>
 
 <video id="video" autoplay playsinline muted style="display:none;"></video>
@@ -522,7 +529,23 @@
   const ZOOM_FACTOR = 2;
   let currentStream = null;
   let livePickPos = null; // {x,y} in videoCanvas pixel space – continuously re-sampled each frame
-  let pickedRgb = null;   // last picked/tracked RGB, used by markers + profile switches
+  let pickedRgb = null;   // last picked/tracked RGB (already smoothed), used by markers + profile switches
+
+  // >>> Fenstergröße der gleitenden Mittelung für Colorpicker + Weißabgleich/Tint <<<
+  // Glättet Sensorrauschen: größerer Wert = ruhiger, aber trägeres Ansprechverhalten.
+  const PICKER_SMOOTHING_SAMPLES = 5; // ---------------- AVERAGING COLOR PICKER -----------------
+  let pickHistory = []; // Ringpuffer der letzten Roh-RGB-Samples an der aktuellen Pick-Position
+  function pushPickSample(rgb){
+    pickHistory.push(rgb);
+    if(pickHistory.length > PICKER_SMOOTHING_SAMPLES) pickHistory.shift();
+  }
+  function averagedPickRgb(){
+    if(pickHistory.length === 0) return null;
+    let sr=0, sg=0, sb=0;
+    pickHistory.forEach(([r,g,b]) => { sr+=r; sg+=g; sb+=b; });
+    const n = pickHistory.length;
+    return [sr/n, sg/n, sb/n];
+  }
 
   async function listCams(){
     try{
@@ -723,15 +746,13 @@
   let dragStart = null, dragCur = null;
 
   const maskResetBtn = document.getElementById("maskResetBtn");
-  const maskTag = document.getElementById("maskTag");
 
   function updateMaskUI(){
     maskResetBtn.disabled = !maskActive;
-    if(maskActive && maskRect){
-      maskTag.innerHTML = `Maske: <b>an</b> · ${Math.round(maskRect.fw*VW)}×${Math.round(maskRect.fh*VH)}px`;
-    } else {
-      maskTag.innerHTML = "Maske: <b>aus</b>";
-    }
+    maskResetBtn.classList.toggle("active", maskActive);
+    maskResetBtn.textContent = maskActive
+      ? `Maske: an · ${Math.round(maskRect.fw*VW)}×${Math.round(maskRect.fh*VH)}px (zurücksetzen)`
+      : "Maske: aus";
   }
   maskResetBtn.addEventListener("click", () => { maskActive = false; maskRect = null; updateMaskUI(); });
 
@@ -908,7 +929,7 @@
 
   // >>> Adjust this if the accurate chromaticity coloring is too strong/weak <<<
   // 0 = off (plain dark background), 1 = fully opaque colors.
-  const CHROMA_COLOR_ALPHA = 0.1;
+  const CHROMA_COLOR_ALPHA = 0.1; // ---------------- CIE CHROMA OVERLAY 
 
   function chromaPx(x,y){
     return [
@@ -1055,7 +1076,7 @@
   chartMarkersBtn.addEventListener("click", () => {
     showChartMarkers = !showChartMarkers;
     chartMarkersBtn.classList.toggle("active", showChartMarkers);
-    chartMarkersBtn.textContent = showChartMarkers ? "In Scope/CIE ausblenden" : "In Scope/CIE anzeigen";
+    chartMarkersBtn.textContent = showChartMarkers ? "In Skop/CIE ausblenden" : "In Skop/CIE anzeigen";
   });
 
   let showPickerMarker = false;
@@ -1076,14 +1097,15 @@
     c.width = WF_W; c.height = WF_H;
     const g = c.getContext("2d");
     g.fillStyle = "#060907"; g.fillRect(0,0,WF_W,WF_H);
-    g.strokeStyle = "rgba(91,224,138,0.14)"; g.lineWidth = 1;
-    g.fillStyle = "rgba(125,143,133,0.8)";
     g.font = "10px 'JetBrains Mono', monospace";
-    [0,64,128,191,255].forEach(v => {
-      const y = WF_H - (v/255)*WF_H;
+    [0, 0.2, 0.4, 0.6, 0.8, 1.0].forEach(f => {
+      const y = WF_H - f*WF_H;
+      g.strokeStyle = "rgba(255,214,0,0.35)"; g.lineWidth = 1;
       g.beginPath(); g.moveTo(0,y); g.lineTo(WF_W,y); g.stroke();
-      g.fillText(String(v), 4, Math.max(10, y-3));
+      g.fillStyle = "rgba(224,64,64,0.9)";
+      g.fillText(String(Math.round(f*100)), 4, Math.max(10, y-3));
     });
+    g.strokeStyle = "rgba(91,224,138,0.14)"; g.lineWidth = 1;
     for(let i=1;i<8;i++){
       const x = (i/8)*WF_W;
       g.beginPath(); g.moveTo(x,0); g.lineTo(x,WF_H); g.stroke();
@@ -1097,7 +1119,7 @@
   const wfYTCtx = wfYTrace.getContext("2d");
 
   // ---------- Sampling canvas ----------
-  const SAMPLE_W = 160, SAMPLE_H = 90;
+  const SAMPLE_W = 160, SAMPLE_H = 90; // ----------------------- VIDEO SAMPLE ----------
   const sampleCanvas = document.createElement("canvas");
   sampleCanvas.width = SAMPLE_W; sampleCanvas.height = SAMPLE_H;
   const sCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
@@ -1196,12 +1218,12 @@
   // Beide Leisten sind symmetrisch um die Mitte (= Referenz, keine Abweichung).
 
   // >>> Größe der Warm/Kalt-Leiste: Abweichung in Mired, die den Leistenrand erreicht <<<
-  const MAX_CCT_DEVIATION_MIRED = 110; // 100 Mired um 6504K ≈ sichtbarer Bereich ~3200K–13000K
+  const MAX_CCT_DEVIATION_MIRED = 100; // 100 Mired um 6504K ≈ sichtbarer Bereich ~3200K–13000K
 
   // >>> Größe der Grün/Magenta-Leiste: Duv-Abweichung, die den Leistenrand erreicht <<<
   const MAX_DUV_DEVIATION = 0.02;
 
-  const CCT_REF = 6504; // D65
+  const CCT_REF = 6504; // -------- Referenzpunkt für die Warm/Kalt-Leiste (nahe D65/6504K)
 
   const wbMarkerTempEl = document.getElementById("wbMarkerTemp");
   const wbMarkerTintEl = document.getElementById("wbMarkerTint");
@@ -1228,13 +1250,14 @@
       return;
     }
     const clampedForText = Math.max(1000, Math.min(40000, cct));
+    const devK = Math.round(clampedForText - CCT_REF); // relative Anzeige, absolute Werte bleiben nur im CIE-Diagramm
     const duv = computeDuv(rgb[0], rgb[1], rgb[2], clampedForText);
     const duvScaled = duv*1000;
     const gmText = (duvScaled>=0 ? "+" : "-") + Math.abs(duvScaled).toFixed(1) + (duvScaled>=0 ? "G" : "M");
 
     wbMarkerTempEl.style.display = "block";
     wbMarkerTempEl.style.left = cctDevToPercent(clampedForText) + "%";
-    wbValTempEl.innerHTML = `≈ <b>${Math.round(clampedForText)} K</b>`;
+    wbValTempEl.innerHTML = `${devK>=0?"+":""}<b>${devK} K</b>`;
 
     wbMarkerTintEl.style.display = "block";
     wbMarkerTintEl.style.left = duvToPercent(duv) + "%";
@@ -1288,7 +1311,6 @@
   const matchRgb = document.getElementById("matchRgb");
   const matchDe = document.getElementById("matchDe");
 
-  const BAR_MAX_H = 145; // px, matches .bar-track usable height
   const barEls = {
     rNow: document.getElementById("barRNow"), rIdeal: document.getElementById("barRIdeal"),
     gNow: document.getElementById("barGNow"), gIdeal: document.getElementById("barGIdeal"),
@@ -1302,13 +1324,27 @@
     yNow: document.getElementById("valBarYNow"), yIdeal: document.getElementById("valBarYIdeal")
   };
   function setBar(key, value){
-    const h = Math.round(Math.max(0, Math.min(255, value))/255 * BAR_MAX_H);
+    // measured live instead of a fixed constant, so the bars always use the
+    // full height the (now flexibly sized) .bar-track actually has
+    const trackHeight = barEls[key].parentElement.clientHeight || 1;
+    const h = Math.round(Math.max(0, Math.min(255, value))/255 * trackHeight);
     barEls[key].style.height = h + "px";
     barVals[key].textContent = Math.round(value);
   }
 
-  function showPicked(rgb, forcedIdx){
-    const [r,g,b] = rgb;
+  function showPicked(rawRgb, forcedIdx){
+    let smoothed;
+    if(forcedIdx === undefined){
+      // live/video pick: feed the moving-average window, display the average
+      pushPickSample(rawRgb);
+      smoothed = averagedPickRgb() || rawRgb;
+    } else {
+      // a directly clicked reference chart patch is exact - no smoothing,
+      // and don't let it bleed into the next live-tracked average either
+      pickHistory = [];
+      smoothed = rawRgb;
+    }
+    const r = Math.round(smoothed[0]), g = Math.round(smoothed[1]), b = Math.round(smoothed[2]);
     pickedRgb = [r,g,b];
     pickedSwatch.style.background = toHex(r,g,b);
     valHex.textContent = toHex(r,g,b);
@@ -1350,6 +1386,7 @@
   function pickAt(x, y, ev){
     const px = Math.round(x), py = Math.round(y);
     livePickPos = { x: px, y: py };
+    pickHistory = []; // new position: don't blend in samples from the old spot
     let data;
     try{ data = vCtx.getImageData(px, py, 1, 1).data; } catch(e){ return; }
     showPicked([data[0], data[1], data[2]]);
