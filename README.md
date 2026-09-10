@@ -18,6 +18,8 @@ Kein Internetzugang nötig außer für den einmaligen Font-Ladevorgang; die App 
 - **Obere Zeile, zweispaltig**: links das (größere) Kamerabild samt Bedienelementen und Weißabgleich-Leisten; rechts ein Tab-Panel mit Vektorskop, Y-Waveform und CIE-Farbraum.
 - **Untere Zeile, dreispaltig**: 24-Felder-Farbtafel, Colorpicker, RGB+Luma-Diagramm (IST/SOLL). Alle drei Felder strecken sich auf die Höhe des Colorpicker-Panels.
 
+![Colorpicker in Vectorscope](Colorpicker_in_Vectorscope.png)
+
 ## Funktionsübersicht
 
 ### Kamera-Panel (oben links)
@@ -32,6 +34,8 @@ Kein Internetzugang nötig außer für den einmaligen Font-Ladevorgang; die App 
 - **CIE Farbraum** – akkurat eingefärbter sRGB-Arbeitsbereich (x: 0.1–0.7 / y: 0–0.7), sRGB-Gamut-Dreieck, Planckscher Kurvenzug ab 2500K und D65-Weißpunkt.
 
 Vektorskop und CIE-Diagramm können optional die 24 Farbtafel-Felder als Marker einblenden – der Button dafür sitzt bei der Farbtafel-Überschrift unten links und steuert beide Diagramme gemeinsam. Der Picker-Marker (aktuell gepickte Farbe) ist in beiden Diagrammen zuschaltbar/eingeblendet.
+
+![Y-Waveform with masked Area](Y_Waveform_with_Mask.png)
 
 ### Farbtafel / Colorpicker / RGB+Luma (unten)
 - Klick ins Kamerabild pickt eine Farbe und **verfolgt die Bildposition live weiter** – der Wert wird jeden Frame neu abgetastet und über die letzten Samples gemittelt (siehe [Glättung](#glättung-der-messwerte)).
@@ -67,6 +71,8 @@ Näherung nach Kim et al. (2002), gezeichnet ab 2500K (darunter wird die Näheru
 
 ### CIE-Diagramm-Einfärbung
 Jeder Pixel im Diagramm wird über die inverse sRGB/D65-Matrix zurück nach sRGB gerechnet (bei Y=1). Farben außerhalb des sRGB-Gamuts werden verhältniserhaltend skaliert statt hart geclippt, damit der Übergang am Gamut-Rand weich bleibt.
+
+![Colorpicker shown in CIE Diagram](CIE_Example_with_picker.png)
 
 ## Einstellbare Variablen
 
