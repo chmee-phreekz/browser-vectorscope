@@ -2,8 +2,7 @@
 
 Ein einzelnes, selbstständiges HTML/JS/CSS-Tool, das das Live-Bild der Webcam als Vektorskop, Waveform-Monitor und CIE-Chromatizitätsdiagramm darstellt – plus Pixel-Colorpicker mit Abgleich gegen eine 24-Felder-Farbtafel. Läuft komplett im Browser, kein Server, kein Build-Schritt, keine externen Abhängigkeiten außer zwei Google-Fonts.
 
-Entstanden mit Claude Sonnet 5.
-Aktueller Stand: **chmee v15.4** (Footer der App).
+Aktueller Stand: **chmee v15.5** (Footer der App). made with Claude Sonnet 5.
 
 ## Schnellstart
 
@@ -77,7 +76,7 @@ Jeder Pixel im Diagramm wird über die inverse sRGB/D65-Matrix zurück nach sRGB
 
 ## Einstellbare Variablen
 
-Alle folgenden Werte sind als benannte Konstanten im `<script>`-Block kommentiert und lassen sich direkt anpassen:
+Alle folgenden Werte stehen **gebündelt in einem Konfigurationsblock direkt am Anfang** des `<script>`-Bereichs (nach `"use strict"`), kommentiert und leicht anpassbar:
 
 | Variable | Standardwert | Wirkung |
 |---|---|---|

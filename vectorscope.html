@@ -361,7 +361,7 @@
   Webcam-Signal live als Vektor-, Waveform- und Chromatizitäts-Monitor, plus Pixel-Colorpicker gegen eine 24-Felder-Farbtafel.
   Vereinfachtes CIE-xy-Diagramm: sRGB-Dreieck, Planckscher Kurvenzug (Schwarzkörper) und die Position der aktuell gepickten Farbe.
   Farbtiefe pro Kanal ist über Web-Kamera-APIs nicht abfragbar/einstellbar – Browser liefern grundsätzlich 8-Bit pro Kanal. Nur was der Browser/die Kamera tatsächlich meldet, erscheint hier.
-  chmee v15.4 Sep-2026
+  chmee v15.5 Sep-2026 made with Claude Sonnet 5
   </footer>
 </div>
 
@@ -370,6 +370,20 @@
 <script>
 (function(){
   "use strict";
+
+  // ============================================================
+  // KONFIGURATION — alle frei einstellbaren Werte an einem Ort
+  // ============================================================
+  const BLUR_PX = 3;                     // Weichzeichnen-Radius in Pixeln
+  const ZOOM_FACTOR = 2;                 // Vergrößerungsfaktor des Center-Crop-Zooms
+  const PICKER_SMOOTHING_SAMPLES = 5;    // Fenstergröße der gleitenden Mittelung für Colorpicker + Weißabgleich/Tint (größer = ruhiger, aber träger)
+  const CHROMA_COLOR_ALPHA = 0.1;        // Deckkraft der akkuraten Farbeinfärbung im CIE-Diagramm (0 = aus, 1 = voll deckend)
+  const SAMPLE_W = 160, SAMPLE_H = 90;   // Auflösung der internen Sampling-Canvas für Vektorskop/Waveform (Performance vs. Detailgrad)
+  const CCT_REF = 6504;                  // Referenztemperatur (D65) für die Warm/Kalt-Leiste und die relative K-Anzeige
+  const MAX_CCT_DEVIATION_MIRED = 100;   // Mired-Abweichung von CCT_REF, bei der die Warm/Kalt-Leiste den Rand erreicht (~3200K–13000K sichtbar)
+  const MAX_DUV_DEVIATION = 0.02;        // Duv-Abweichung, bei der die Grün/Magenta-Leiste den Rand erreicht
+  // ============================================================
+
 
   // ---------- Reference 24-patch color chart (approx sRGB, D65) ----------
   const CHART = [
@@ -525,15 +539,10 @@
   let frozen = false;
   let blurEnabled = false;
   let zoomEnabled = false;
-  const BLUR_PX = 3;
-  const ZOOM_FACTOR = 2;
   let currentStream = null;
   let livePickPos = null; // {x,y} in videoCanvas pixel space – continuously re-sampled each frame
   let pickedRgb = null;   // last picked/tracked RGB (already smoothed), used by markers + profile switches
 
-  // >>> Fenstergröße der gleitenden Mittelung für Colorpicker + Weißabgleich/Tint <<<
-  // Glättet Sensorrauschen: größerer Wert = ruhiger, aber trägeres Ansprechverhalten.
-  const PICKER_SMOOTHING_SAMPLES = 5; // ---------------- AVERAGING COLOR PICKER -----------------
   let pickHistory = []; // Ringpuffer der letzten Roh-RGB-Samples an der aktuellen Pick-Position
   function pushPickSample(rgb){
     pickHistory.push(rgb);
@@ -927,10 +936,6 @@
   // Zoomed into the relevant RGB working range rather than the full CIE horseshoe
   const CH_XMIN=0.1, CH_XMAX=0.7, CH_YMIN=0.0, CH_YMAX=0.7;
 
-  // >>> Adjust this if the accurate chromaticity coloring is too strong/weak <<<
-  // 0 = off (plain dark background), 1 = fully opaque colors.
-  const CHROMA_COLOR_ALPHA = 0.1; // ---------------- CIE CHROMA OVERLAY 
-
   function chromaPx(x,y){
     return [
       CH_M + (x-CH_XMIN)/(CH_XMAX-CH_XMIN)*(CH_W-2*CH_M),
@@ -1119,7 +1124,6 @@
   const wfYTCtx = wfYTrace.getContext("2d");
 
   // ---------- Sampling canvas ----------
-  const SAMPLE_W = 160, SAMPLE_H = 90; // ----------------------- VIDEO SAMPLE ----------
   const sampleCanvas = document.createElement("canvas");
   sampleCanvas.width = SAMPLE_W; sampleCanvas.height = SAMPLE_H;
   const sCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
@@ -1216,14 +1220,6 @@
   // ---------- Weißabgleich: zwei relative Leisten statt Absolutwert ----------
   // Referenz ist D65 (6504K, Duv 0) - dieselbe Referenz wie im CIE-Diagramm.
   // Beide Leisten sind symmetrisch um die Mitte (= Referenz, keine Abweichung).
-
-  // >>> Größe der Warm/Kalt-Leiste: Abweichung in Mired, die den Leistenrand erreicht <<<
-  const MAX_CCT_DEVIATION_MIRED = 100; // 100 Mired um 6504K ≈ sichtbarer Bereich ~3200K–13000K
-
-  // >>> Größe der Grün/Magenta-Leiste: Duv-Abweichung, die den Leistenrand erreicht <<<
-  const MAX_DUV_DEVIATION = 0.02;
-
-  const CCT_REF = 6504; // -------- Referenzpunkt für die Warm/Kalt-Leiste (nahe D65/6504K)
 
   const wbMarkerTempEl = document.getElementById("wbMarkerTemp");
   const wbMarkerTintEl = document.getElementById("wbMarkerTint");
