@@ -2,6 +2,7 @@
 
 Ein einzelnes, selbstständiges HTML/JS/CSS-Tool, das das Live-Bild der Webcam als Vektorskop, Waveform-Monitor und CIE-Chromatizitätsdiagramm darstellt – plus Pixel-Colorpicker mit Abgleich gegen eine 24-Felder-Farbtafel. Läuft komplett im Browser, kein Server, kein Build-Schritt, keine externen Abhängigkeiten außer zwei Google-Fonts.
 
+Entstanden mit Claude Sonnet 5.
 Aktueller Stand: **chmee v15.4** (Footer der App).
 
 ## Schnellstart
